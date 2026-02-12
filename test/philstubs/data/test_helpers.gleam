@@ -46,14 +46,17 @@ CREATE TABLE IF NOT EXISTS legislation_templates (
 );
 "
 
-/// SQL for creating ingestion state table (matches priv/migrations/003_create_ingestion_state.sql).
+/// SQL for creating ingestion state table (matches priv/migrations/003 + 004).
 pub const create_ingestion_state_sql = "
 CREATE TABLE IF NOT EXISTS ingestion_state (
   id TEXT PRIMARY KEY,
   source TEXT NOT NULL DEFAULT 'congress_gov',
-  congress_number INTEGER NOT NULL,
-  bill_type TEXT NOT NULL,
+  congress_number INTEGER,
+  bill_type TEXT,
+  jurisdiction TEXT,
+  session TEXT,
   last_offset INTEGER NOT NULL DEFAULT 0,
+  last_page INTEGER NOT NULL DEFAULT 0,
   last_update_date TEXT,
   total_bills_fetched INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'pending',
@@ -61,8 +64,7 @@ CREATE TABLE IF NOT EXISTS ingestion_state (
   completed_at TEXT,
   error_message TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE(source, congress_number, bill_type)
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 "
 
