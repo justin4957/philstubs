@@ -46,6 +46,26 @@ CREATE TABLE IF NOT EXISTS legislation_templates (
 );
 "
 
+/// SQL for creating ingestion state table (matches priv/migrations/003_create_ingestion_state.sql).
+pub const create_ingestion_state_sql = "
+CREATE TABLE IF NOT EXISTS ingestion_state (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL DEFAULT 'congress_gov',
+  congress_number INTEGER NOT NULL,
+  bill_type TEXT NOT NULL,
+  last_offset INTEGER NOT NULL DEFAULT 0,
+  last_update_date TEXT,
+  total_bills_fetched INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending',
+  started_at TEXT,
+  completed_at TEXT,
+  error_message TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(source, congress_number, bill_type)
+);
+"
+
 /// SQL for creating FTS5 tables and triggers (matches priv/migrations/002_create_fts_tables.sql).
 pub const create_fts_sql = "
 CREATE VIRTUAL TABLE IF NOT EXISTS legislation_fts USING fts5(
@@ -101,7 +121,11 @@ END;
 
 /// All migrations as version/SQL pairs for use with run_migrations_from_sql.
 pub fn all_migrations() -> List(#(String, String)) {
-  [#("001", create_tables_sql), #("002", create_fts_sql)]
+  [
+    #("001", create_tables_sql),
+    #("002", create_fts_sql),
+    #("003", create_ingestion_state_sql),
+  ]
 }
 
 /// Set up a fresh in-memory database with all migrations applied.

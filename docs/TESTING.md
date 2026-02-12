@@ -82,6 +82,88 @@ Tests live in `test/` and follow the gleeunit convention:
 **Download Count** (1 test):
 - `increment_download_count_test` — Verify count increments from 42 to 43
 
+### Congress.gov Ingestion Tests
+
+#### Congress Types (`test/philstubs/ingestion/congress_types_test.gleam`)
+
+**JSON Decoder Tests** (10 tests):
+- `decode_bill_list_response_test` — Decode canned bill list JSON with pagination and latestAction
+- `decode_bill_list_item_without_latest_action_test` — Decode bill with missing optional latestAction
+- `decode_bill_detail_response_test` — Decode full detail with sponsors, policyArea, latestAction
+- `decode_bill_detail_minimal_test` — Decode detail with only required fields, optional fields default
+- `decode_latest_action_test` — Decode standalone latest action object
+- `decode_sponsor_test` — Decode sponsor with all fields
+- `decode_sponsor_minimal_test` — Decode sponsor with only fullName
+- `bill_type_to_string_test` — Verify bill type enum to string mapping
+- `all_bill_types_test` — Verify all 8 bill types returned
+- `default_config_test` — Verify config constructor defaults
+- `decode_pagination_without_next_test` — Decode pagination without next URL
+
+#### Bill Mapper (`test/philstubs/ingestion/bill_mapper_test.gleam`)
+
+**Pure Mapping Tests** (18 tests):
+- `build_legislation_id_test` / `build_legislation_id_senate_test` — Deterministic ID construction
+- `map_bill_type_*_test` (5 tests) — HR/S → Bill, HJRES/SCONRES → Resolution, unknown → Bill
+- `infer_status_*_test` (7 tests) — Status inference from action text: None → Introduced, "became public law" → Enacted, "vetoed" → Vetoed, "passed house/senate" → PassedChamber, "referred to"/"committee" → InCommittee, fallback → Introduced
+- `build_source_identifier_*_test` (4 tests) — H.R., S., H.J.Res., S.Con.Res. formatting
+- `build_source_url_*_test` (2 tests) — Congress.gov URL construction for house/senate
+- `map_list_item_to_legislation_test` — Full mapping from list item to domain type
+- `map_detail_to_legislation_test` — Full mapping from detail to domain type with sponsors/topics
+- `map_detail_to_legislation_no_policy_area_test` — Mapping with empty optional fields
+- `map_list_item_resolution_type_test` — HJRES maps to Resolution type
+
+#### Ingestion State Repository (`test/philstubs/ingestion/ingestion_state_repo_test.gleam`)
+
+**Database CRUD Tests** (7 tests):
+- `upsert_and_get_test` — Insert state and retrieve by congress/type
+- `get_not_found_test` — Query for nonexistent state returns `Ok(None)`
+- `upsert_replaces_existing_test` — Upsert overwrites previous record
+- `update_progress_test` — Increment offset and total_bills_fetched across multiple calls
+- `mark_completed_test` — Status transitions to "completed"
+- `mark_failed_test` — Status transitions to "failed" with error message
+- `build_ingestion_id_test` — Verify deterministic ID construction
+
+#### Congress Ingestion Integration (`test/philstubs/ingestion/congress_ingestion_test.gleam`)
+
+**Mock HTTP Tests** (4 tests):
+- `ingest_bills_with_mock_test` — Full pipeline with mock dispatcher: fetch → map → store → verify DB records
+- `ingest_bills_updates_ingestion_state_test` — Verify ingestion state tracking through pipeline
+- `ingest_bills_idempotent_test` — Run ingestion twice, verify no duplicates (update existing records)
+- `ingest_bills_handles_server_error_test` — Verify error handling marks ingestion state as failed
+
+**Live API Test** (1 test, gated on CONGRESS_API_KEY):
+- `live_api_smoke_test` — Fetches real bills from Congress.gov API, stores in memory DB, verifies structure
+
+### Ingestion Testing Pattern
+
+Ingestion tests use **function injection** for HTTP testability:
+
+```gleam
+import gleam/http/response.{type Response, Response}
+
+fn mock_dispatcher() -> congress_api_client.HttpDispatcher {
+  fn(_req: request.Request(String)) -> Result(Response(String), String) {
+    Ok(Response(status: 200, headers: [], body: canned_json))
+  }
+}
+
+pub fn ingest_with_mock_test() {
+  use connection <- database.with_named_connection(":memory:")
+  let assert Ok(_) = test_helpers.setup_test_db(connection)
+  let config = congress_types.default_config("test-key", 118)
+
+  let assert Ok(result) =
+    congress_ingestion.ingest_bills(connection, config, congress_types.Hr, mock_dispatcher())
+  result.bills_stored |> should.equal(2)
+}
+```
+
+Key patterns:
+- Mock dispatchers return canned JSON responses for deterministic testing
+- Error dispatchers simulate API failures (500s, timeouts)
+- Live tests gated on `CONGRESS_API_KEY` env var — skip gracefully when unavailable
+- All database tests use fresh `:memory:` SQLite with `test_helpers.setup_test_db`
+
 ## Testing Strategy
 
 - **Pure function tests**: Test domain logic in `core/` with direct assertions
