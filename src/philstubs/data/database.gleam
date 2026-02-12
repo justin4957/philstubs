@@ -1,3 +1,4 @@
+import philstubs/data/migration
 import sqlight
 
 /// The default database path for local development.
@@ -24,4 +25,12 @@ pub fn with_named_connection(
   next: fn(sqlight.Connection) -> result,
 ) -> result {
   sqlight.with_connection(database_path, next)
+}
+
+/// Initialize the database by running all pending migrations.
+/// Should be called once at application startup.
+pub fn initialize(
+  connection: sqlight.Connection,
+) -> Result(List(String), sqlight.Error) {
+  migration.run_migrations(connection)
 }
