@@ -13,8 +13,8 @@ pub fn run_migrations_fresh_database_test() {
   result |> should.be_ok
 
   let assert Ok(applied_versions) = result
-  applied_versions |> list.length |> should.equal(2)
-  applied_versions |> should.equal(["001", "002"])
+  applied_versions |> list.length |> should.equal(3)
+  applied_versions |> should.equal(["001", "002", "003"])
 
   // Verify legislation table exists
   let table_check =
@@ -58,7 +58,7 @@ pub fn run_migrations_idempotent_test() {
   second_run |> should.be_ok
   let assert Ok(second_applied) = second_run
 
-  // First run applies both, second run applies none
-  first_applied |> list.length |> should.equal(2)
+  // First run applies all three, second run applies none
+  first_applied |> list.length |> should.equal(3)
   second_applied |> list.length |> should.equal(0)
 }
