@@ -36,6 +36,12 @@ pub fn build_state_ingestion_id(jurisdiction: String, session: String) -> String
   "openstates-" <> jurisdiction <> "-" <> session
 }
 
+/// Build a deterministic ID for a local (county/municipal) ingestion state record.
+/// Produces IDs like "legistar-seattle" or "legistar-chicago".
+pub fn build_local_ingestion_id(source: String, client_id: String) -> String {
+  source <> "-" <> client_id
+}
+
 /// Insert or replace an ingestion state record.
 pub fn upsert(
   connection: sqlight.Connection,

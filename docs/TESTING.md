@@ -186,6 +186,56 @@ Tests live in `test/` and follow the gleeunit convention:
 **Live API Test** (1 test, gated on PLURAL_POLICY_KEY):
 - `live_api_smoke_test` — Fetches real bills from Open States API, stores in memory DB, verifies State level and structure
 
+### Legistar (Local/Municipal/County) Ingestion Tests
+
+#### Legistar Types (`test/philstubs/ingestion/legistar_types_test.gleam`)
+
+**JSON Decoder Tests** (9 tests):
+- `decode_full_matter_test` — Decode matter with all 15 fields populated
+- `decode_minimal_matter_test` — Decode matter with only required fields (MatterId, MatterGuid)
+- `decode_null_fields_matter_test` — Decode matter with explicit null values for all optional fields
+- `decode_sponsor_test` — Decode sponsor with MatterSponsorName
+- `decode_empty_matters_array_test` — Decode empty JSON array (pagination end signal)
+- `decode_matters_array_test` — Decode array with multiple matters
+- `decode_sponsors_array_test` — Decode array with multiple sponsors
+- `default_config_test` — Verify config constructor with no token
+- `default_config_with_token_test` — Verify config constructor with token
+
+#### Legistar Mapper (`test/philstubs/ingestion/legistar_mapper_test.gleam`)
+
+**Pure Mapping Tests** (23 tests):
+- `build_legislation_id_test` / `build_legislation_id_county_test` — Deterministic ID construction ("legistar-{client}-{id}")
+- `map_type_*_test` (6 tests) — Ordinance → Ordinance, Resolution → Resolution, Motion → Bill, None → Bill, unknown → Bill, Executive Order → ExecutiveOrder
+- `map_status_*_test` (8 tests) — Adopted/Passed → Enacted, Vetoed → Vetoed, Referred → InCommittee, Filed → Introduced, Withdrawn → Withdrawn, Expired → Expired, None → Introduced
+- `extract_title_*_test` (4 tests) — Title fallback chain: matter_title → matter_name → matter_file → "Untitled"
+- `parse_date_*_test` (3 tests) — Strip T00:00:00 suffix, handle bare date, handle None
+- `build_source_url_test` — Legistar URL construction
+- `extract_sponsor_names_test` / `extract_sponsor_names_empty_test` — Sponsor name extraction
+- `map_matter_to_legislation_municipal_test` — Full mapping with Municipal("WA", "Seattle") level, sponsors, all fields
+- `map_matter_to_legislation_county_test` — Full mapping with County("WA", "King County") level
+- `map_matter_minimal_test` — Mapping with all-None optional fields, defaults to Bill/Introduced/empty
+
+#### Jurisdiction Registry (`test/philstubs/ingestion/jurisdiction_registry_test.gleam`)
+
+**Registry Tests** (5 tests):
+- `get_by_client_id_found_test` — Look up "seattle" returns Municipal("WA", "Seattle")
+- `get_by_client_id_not_found_test` — Look up "nonexistent" returns None
+- `get_by_client_id_county_test` — Look up "kingcounty" returns County("WA", "King County")
+- `all_jurisdictions_returns_expected_entries_test` — Verify 6 entries (4 Municipal, 2 County)
+- `get_by_client_id_cook_county_test` — Look up "cookcounty" returns County("IL", "Cook County")
+
+#### Legistar Ingestion Integration (`test/philstubs/ingestion/legistar_ingestion_test.gleam`)
+
+**Mock HTTP Tests** (5 tests):
+- `ingest_client_with_mock_test` — Full pipeline with mock dispatcher: fetch matters → fetch sponsors per matter → map → store → verify DB records with Municipal("WA", "Seattle") level, sponsors from separate endpoint
+- `ingest_client_updates_ingestion_state_test` — Verify ingestion state tracking (source="legistar", jurisdiction=client_id, session="current")
+- `ingest_client_idempotent_test` — Run ingestion twice, verify no duplicates (update existing records)
+- `ingest_client_handles_server_error_test` — Verify error handling marks ingestion state as failed
+- `ingest_clients_continues_on_failure_test` — Verify per-client error isolation (both clients get results)
+
+**Live API Test** (1 test, always runs — Seattle is public/no token):
+- `live_api_smoke_test` — Fetches real matters from Legistar Seattle (public, no token needed), stores in memory DB, verifies Municipal("WA", "Seattle") level and "legistar-" ID prefix. Gracefully handles API unavailability.
+
 ### Ingestion Testing Pattern
 
 Ingestion tests use **function injection** for HTTP testability:
@@ -212,13 +262,16 @@ pub fn ingest_with_mock_test() {
 
 Key patterns:
 - Mock dispatchers return canned JSON responses for deterministic testing
+- Legistar mock dispatchers route by URL path to return different responses for matters vs sponsors endpoints
 - Error dispatchers simulate API failures (500s, timeouts)
 - Live tests gated on env vars — skip gracefully when unavailable:
   - `CONGRESS_API_KEY` for Congress.gov tests
   - `PLURAL_POLICY_KEY` for Open States tests
+  - Legistar Seattle tests always run (public API, no token required)
 - All database tests use fresh `:memory:` SQLite with `test_helpers.setup_test_db`
-- Open States uses the same `HttpDispatcher` type for consistency across ingestion sources
+- All ingestion sources share the same `HttpDispatcher` type for consistency
 - State ingestion tests verify `GovernmentLevel.State("CA")` is correctly set on stored records
+- Legistar ingestion tests verify `GovernmentLevel.Municipal("WA", "Seattle")` and `GovernmentLevel.County("WA", "King County")` on stored records
 
 ## Testing Strategy
 
