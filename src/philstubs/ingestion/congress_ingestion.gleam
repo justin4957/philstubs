@@ -110,9 +110,12 @@ pub fn ingest_bills(
     ingestion_state_repo.IngestionState(
       id: ingestion_id,
       source: "congress_gov",
-      congress_number: config.congress_number,
-      bill_type: bill_type_string,
+      congress_number: Some(config.congress_number),
+      bill_type: Some(bill_type_string),
+      jurisdiction: None,
+      session: None,
       last_offset: initial_offset,
+      last_page: 0,
       last_update_date: None,
       total_bills_fetched: case existing_state {
         Some(state) -> state.total_bills_fetched

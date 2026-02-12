@@ -114,14 +114,20 @@ Tests live in `test/` and follow the gleeunit convention:
 
 #### Ingestion State Repository (`test/philstubs/ingestion/ingestion_state_repo_test.gleam`)
 
-**Database CRUD Tests** (7 tests):
-- `upsert_and_get_test` — Insert state and retrieve by congress/type
+**Congress.gov CRUD Tests** (7 tests):
+- `upsert_and_get_test` — Insert state and retrieve by congress/type, verify Optional fields
 - `get_not_found_test` — Query for nonexistent state returns `Ok(None)`
 - `upsert_replaces_existing_test` — Upsert overwrites previous record
 - `update_progress_test` — Increment offset and total_bills_fetched across multiple calls
 - `mark_completed_test` — Status transitions to "completed"
 - `mark_failed_test` — Status transitions to "failed" with error message
 - `build_ingestion_id_test` — Verify deterministic ID construction
+
+**Open States CRUD Tests** (4 tests):
+- `state_upsert_and_get_by_jurisdiction_test` — Insert state ingestion record and retrieve by jurisdiction/session
+- `state_get_not_found_test` — Query for nonexistent jurisdiction/session returns `Ok(None)`
+- `update_page_progress_test` — Increment last_page and total_bills_fetched across multiple calls
+- `build_state_ingestion_id_test` — Verify deterministic state ingestion ID construction
 
 #### Congress Ingestion Integration (`test/philstubs/ingestion/congress_ingestion_test.gleam`)
 
@@ -133,6 +139,52 @@ Tests live in `test/` and follow the gleeunit convention:
 
 **Live API Test** (1 test, gated on CONGRESS_API_KEY):
 - `live_api_smoke_test` — Fetches real bills from Congress.gov API, stores in memory DB, verifies structure
+
+### Open States Ingestion Tests
+
+#### Open States Types (`test/philstubs/ingestion/openstates_types_test.gleam`)
+
+**JSON Decoder Tests** (14 tests):
+- `decode_jurisdiction_test` — Decode jurisdiction with id, name, classification
+- `decode_person_test` — Decode person with name and party
+- `decode_person_minimal_test` — Decode person with only name (no party)
+- `decode_sponsorship_test` — Decode sponsorship with nested person
+- `decode_sponsorship_without_person_test` — Decode sponsorship without person
+- `decode_abstract_test` — Decode abstract with text and note
+- `decode_abstract_without_note_test` — Decode abstract without optional note
+- `decode_action_test` — Decode action with description, date, classification
+- `decode_action_without_classification_test` — Decode action without classification list
+- `decode_pagination_test` — Decode pagination with per_page, page, max_page, total_items
+- `decode_bill_test` — Decode full bill with all nested objects
+- `decode_bill_minimal_test` — Decode bill with only required fields, optional fields default
+- `decode_bill_list_response_test` — Decode bill list response with results and pagination
+- `default_config_test` — Verify config constructor defaults
+
+#### State Bill Mapper (`test/philstubs/ingestion/state_bill_mapper_test.gleam`)
+
+**Pure Mapping Tests** (28 tests):
+- `build_legislation_id_test` / `build_legislation_id_house_bill_test` — Deterministic ID construction with space/dot removal
+- `extract_state_code_*_test` (4 tests) — Extract 2-letter state code from OCD jurisdiction ID (CA, TX, NY, empty)
+- `map_classification_*_test` (6 tests) — Bill classification mapping: bill → Bill, resolution/joint/concurrent → Resolution, empty/unknown → Bill
+- `infer_status_*_test` (9 tests) — Status inference from action classifications: became-law/executive-signature → Enacted, executive-veto → Vetoed, passage → PassedChamber, committee-referral/committee-passage → InCommittee, introduction → Introduced, empty → Introduced, uses last action
+- `extract_sponsor_names_*_test` (3 tests) — Extract from person.name when available, fallback to sponsorship.name, mixed sources
+- `extract_summary_test` / `extract_summary_empty_test` — First abstract text or empty string
+- `map_bill_to_legislation_test` — Full mapping: all fields including State("CA") level, sponsors, topics, summary
+- `map_bill_resolution_type_test` — Resolution classification maps to Resolution type
+- `map_bill_no_abstracts_test` — Empty abstracts produces empty summary
+- `map_bill_no_first_action_date_test` — None first_action_date produces empty introduced_date
+
+#### State Ingestion Integration (`test/philstubs/ingestion/state_ingestion_test.gleam`)
+
+**Mock HTTP Tests** (5 tests):
+- `ingest_jurisdiction_with_mock_test` — Full pipeline with mock dispatcher: fetch → map → store → verify DB records with State("CA") level
+- `ingest_jurisdiction_updates_ingestion_state_test` — Verify ingestion state tracking with jurisdiction/session fields
+- `ingest_jurisdiction_idempotent_test` — Run ingestion twice, verify no duplicates (update existing records)
+- `ingest_jurisdiction_handles_server_error_test` — Verify error handling marks ingestion state as failed
+- `ingest_jurisdictions_continues_on_failure_test` — Verify per-jurisdiction error isolation (both jurisdictions get results)
+
+**Live API Test** (1 test, gated on PLURAL_POLICY_KEY):
+- `live_api_smoke_test` — Fetches real bills from Open States API, stores in memory DB, verifies State level and structure
 
 ### Ingestion Testing Pattern
 
@@ -161,8 +213,12 @@ pub fn ingest_with_mock_test() {
 Key patterns:
 - Mock dispatchers return canned JSON responses for deterministic testing
 - Error dispatchers simulate API failures (500s, timeouts)
-- Live tests gated on `CONGRESS_API_KEY` env var — skip gracefully when unavailable
+- Live tests gated on env vars — skip gracefully when unavailable:
+  - `CONGRESS_API_KEY` for Congress.gov tests
+  - `PLURAL_POLICY_KEY` for Open States tests
 - All database tests use fresh `:memory:` SQLite with `test_helpers.setup_test_db`
+- Open States uses the same `HttpDispatcher` type for consistency across ingestion sources
+- State ingestion tests verify `GovernmentLevel.State("CA")` is correctly set on stored records
 
 ## Testing Strategy
 
