@@ -15,13 +15,36 @@ Tests live in `test/` and follow the gleeunit convention:
 
 ## Current Tests
 
-### Unit Tests (`test/philstubs_test.gleam`)
+### UI Tests (`test/philstubs_test.gleam`)
 
-1. **`government_level_to_string_test`** — Verifies all GovernmentLevel variants
-   convert to their expected string representation. Covers exhaustive pattern matching.
-
-2. **`landing_page_renders_test`** — Verifies the Lustre landing page renders
+1. **`landing_page_renders_test`** — Verifies the Lustre landing page renders
    to an HTML string containing expected content (title, tagline, government levels).
+
+### Domain Type Tests (`test/philstubs/core/domain_types_test.gleam`)
+
+**GovernmentLevel** (8 tests):
+- `to_string` for all 4 variants (Federal, State, County, Municipal)
+- `jurisdiction_label` with jurisdiction data (e.g., "State (CA)", "County (Cook, IL)")
+- JSON round-trip for all 4 variants including jurisdiction data
+
+**LegislationType** (2 tests):
+- `to_string` for all 7 variants
+- JSON round-trip for all 7 variants
+
+**LegislationStatus** (2 tests):
+- `to_string` for all 7 variants
+- JSON round-trip for all 7 variants
+
+**Opaque IDs** (4 tests):
+- LegislationId creation and string extraction
+- LegislationId JSON round-trip
+- TemplateId creation and string extraction
+- TemplateId JSON round-trip
+
+**Full Record Types** (3 tests):
+- Legislation JSON round-trip with all fields including Option(Some)
+- Legislation JSON round-trip with Option(None) source_url
+- LegislationTemplate JSON round-trip with all fields
 
 ## Testing Strategy
 
@@ -47,7 +70,7 @@ curl http://localhost:8000/nonexistent  # Expect: 404
 
 For domain logic, create domain-specific test files:
 ```
-test/philstubs/core/types_test.gleam
+test/philstubs/core/domain_types_test.gleam  (exists)
 test/philstubs/web/router_test.gleam
 ```
 
