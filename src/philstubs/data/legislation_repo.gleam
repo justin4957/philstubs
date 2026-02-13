@@ -2,6 +2,7 @@ import gleam/dynamic/decode
 import gleam/json
 import gleam/option.{type Option, None, Some}
 import gleam/result
+import gleam/string
 import philstubs/core/government_level.{
   type GovernmentLevel, County, Federal, Municipal, State,
 }
@@ -176,6 +177,44 @@ pub fn search(
     with: [sqlight.text(query_text)],
     expecting: legislation_row_decoder(),
   )
+}
+
+/// Find legislation related to the given record by matching topics via FTS5.
+/// Excludes the legislation itself and limits to a small set of results.
+pub fn find_related(
+  connection: sqlight.Connection,
+  legislation_id: String,
+  topics: List(String),
+  max_results: Int,
+) -> Result(List(Legislation), sqlight.Error) {
+  case topics {
+    [] -> Ok([])
+    topic_list -> {
+      let query_text = string.join(topic_list, " OR ")
+      let sql =
+        "SELECT
+          l.id, l.title, l.summary, l.body,
+          l.government_level, l.level_state_code, l.level_county_name, l.level_municipality_name,
+          l.legislation_type, l.status, l.introduced_date,
+          l.source_url, l.source_identifier, l.sponsors, l.topics
+        FROM legislation_fts fts
+        JOIN legislation l ON l.rowid = fts.rowid
+        WHERE legislation_fts MATCH ? AND l.id != ?
+        ORDER BY rank
+        LIMIT ?"
+
+      sqlight.query(
+        sql,
+        on: connection,
+        with: [
+          sqlight.text(query_text),
+          sqlight.text(legislation_id),
+          sqlight.int(max_results),
+        ],
+        expecting: legislation_row_decoder(),
+      )
+    }
+  }
 }
 
 // --- Row decoder ---

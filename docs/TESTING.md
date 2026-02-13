@@ -113,6 +113,41 @@ Tests live in `test/` and follow the gleeunit convention:
 **Download Count** (1 test):
 - `increment_download_count_test` — Verify count increments from 42 to 43
 
+### Legislation Handler Tests (`test/philstubs/web/legislation_handler_test.gleam`)
+
+**Legislation Detail View** (14 tests):
+- `legislation_detail_renders_test` — GET /legislation/:id renders page with title, identifier, status, date
+- `legislation_detail_shows_summary_test` — Detail page includes summary text
+- `legislation_detail_shows_body_text_test` — Detail page includes "Full Text" section with legislation body
+- `legislation_detail_shows_sponsors_test` — Detail page lists all sponsors
+- `legislation_detail_shows_topics_test` — Detail page displays topic tags
+- `legislation_detail_shows_source_link_test` — Detail page includes "View original" link when source_url is Some
+- `legislation_detail_hides_source_link_when_none_test` — No source link when source_url is None
+- `legislation_detail_shows_download_buttons_test` — Detail page has download buttons with correct URLs for text and markdown
+- `legislation_detail_shows_find_similar_link_test` — Detail page has "Find similar legislation" search link
+- `legislation_detail_shows_related_legislation_test` — Related legislation section appears with topic-matched records
+- `legislation_detail_enacted_status_badge_test` — Enacted status renders with status-enacted CSS class
+- `legislation_detail_not_found_test` — Returns 404 for nonexistent legislation ID
+- `legislation_detail_open_graph_meta_test` — Page includes og:title, og:description, og:type meta tags
+- `legislation_detail_no_summary_section_when_empty_test` — Summary section omitted when summary is empty string
+- `legislation_detail_no_sponsors_section_when_empty_test` — Sponsors section omitted when sponsors list is empty
+
+**Legislation Download** (5 tests):
+- `legislation_download_plain_text_test` — Downloads as text/plain with title, identifier, sponsors, and content-disposition header
+- `legislation_download_markdown_test` — Downloads as text/markdown with heading formatting and content-type header
+- `legislation_download_default_format_is_text_test` — No format param defaults to text/plain
+- `legislation_download_not_found_test` — Returns 404 for nonexistent legislation
+- `legislation_download_includes_summary_test` — Summary section included in text download when present
+- `legislation_download_omits_summary_when_empty_test` — Summary section omitted from text download when empty
+
+**Legislation JSON API** (2 tests):
+- `api_legislation_detail_test` — GET /api/legislation/:id returns JSON with application/json content-type
+- `api_legislation_not_found_test` — Returns 404 for nonexistent legislation
+
+**Related Legislation Query** (2 tests):
+- `related_legislation_query_test` — find_related returns topic-matched records excluding the source record
+- `related_legislation_empty_topics_test` — Empty topics list returns empty results
+
 ### Template Handler Tests (`test/philstubs/web/template_handler_test.gleam`)
 
 **Template Listing** (3 tests):
@@ -428,6 +463,14 @@ curl -X POST http://localhost:8000/templates \
 # Template download:
 curl "http://localhost:8000/templates/TEMPLATE_ID/download?format=text"       # Expect: Plain text
 curl "http://localhost:8000/templates/TEMPLATE_ID/download?format=markdown"   # Expect: Markdown
+
+# Legislation detail:
+curl http://localhost:8000/legislation/LEGISLATION_ID                         # Expect: HTML detail page
+curl "http://localhost:8000/legislation/LEGISLATION_ID/download?format=text"  # Expect: Plain text download
+curl "http://localhost:8000/legislation/LEGISLATION_ID/download?format=markdown"  # Expect: Markdown download
+
+# Legislation API:
+curl http://localhost:8000/api/legislation/LEGISLATION_ID                     # Expect: JSON object
 ```
 
 ## Adding New Tests
