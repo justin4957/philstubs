@@ -1,6 +1,9 @@
 import gleam/http
 import gleam/json
+import gleam/option.{None, Some}
 import lustre/element
+import philstubs/core/user
+import philstubs/data/template_repo
 import philstubs/search/search_query
 import philstubs/search/search_repo
 import philstubs/search/search_results
@@ -9,6 +12,7 @@ import philstubs/ui/search_page
 import philstubs/web/api_error
 import philstubs/web/api_handler
 import philstubs/web/api_middleware
+import philstubs/web/auth_handler
 import philstubs/web/browse_handler
 import philstubs/web/context.{type Context}
 import philstubs/web/legislation_handler
@@ -23,8 +27,11 @@ pub fn handle_request(
   request: Request,
   application_context: Context,
 ) -> Response {
-  use request <- middleware.apply_middleware(request, application_context)
-  let db_connection = application_context.db_connection
+  use request, enriched_context <- middleware.apply_middleware(
+    request,
+    application_context,
+  )
+  let db_connection = enriched_context.db_connection
 
   case wisp.path_segments(request) {
     [] -> index_page(request)
@@ -35,20 +42,29 @@ pub fn handle_request(
     ["browse", "state", state_code] ->
       handle_browse_state(request, state_code, db_connection)
     ["browse", "topics"] -> handle_browse_topics(request, db_connection)
-    ["search"] -> handle_search_page(request, application_context)
+    ["search"] -> handle_search_page(request, enriched_context)
+    ["login"] -> auth_handler.handle_login(request, enriched_context)
+    ["auth", "github", "callback"] ->
+      auth_handler.handle_github_callback(
+        request,
+        enriched_context,
+        auth_handler.default_dispatcher(),
+      )
+    ["logout"] -> auth_handler.handle_logout(request, db_connection)
+    ["profile"] -> auth_handler.handle_profile(request, enriched_context)
     ["legislation", legislation_id, "download"] ->
       handle_legislation_download(request, legislation_id, db_connection)
     ["legislation", legislation_id] ->
       handle_legislation_by_id(request, legislation_id, db_connection)
-    ["templates"] -> handle_templates(request, db_connection)
-    ["templates", "new"] -> handle_template_new(request)
+    ["templates"] -> handle_templates(request, enriched_context)
+    ["templates", "new"] -> handle_template_new(request, enriched_context)
     ["templates", template_id, "download"] ->
       handle_template_download(request, template_id, db_connection)
     ["templates", template_id] ->
-      handle_template_by_id(request, template_id, db_connection)
+      handle_template_by_id(request, template_id, enriched_context)
     // --- API routes ---
     ["api", ..api_segments] ->
-      route_api(request, api_segments, application_context)
+      route_api(request, api_segments, enriched_context)
     _ -> wisp.not_found()
   }
 }
@@ -109,11 +125,16 @@ fn route_api(
           handle_api_legislation_stats(request, db_connection)
         ["legislation", legislation_id] ->
           handle_api_legislation_detail(request, legislation_id, db_connection)
-        ["templates"] -> handle_api_templates_dispatch(request, db_connection)
+        ["templates"] ->
+          handle_api_templates_dispatch(request, application_context)
         ["templates", template_id, "download"] ->
           handle_api_template_download(request, template_id, db_connection)
         ["templates", template_id] ->
-          handle_api_template_dispatch(request, template_id, db_connection)
+          handle_api_template_dispatch(
+            request,
+            template_id,
+            application_context,
+          )
         ["levels"] -> handle_api_levels_list(request, db_connection)
         ["levels", level, "jurisdictions"] ->
           handle_api_level_jurisdictions(request, level, db_connection)
@@ -176,11 +197,22 @@ fn handle_api_legislation_detail(
 
 fn handle_api_templates_dispatch(
   request: Request,
-  db_connection: sqlight.Connection,
+  application_context: Context,
 ) -> Response {
   case request.method {
-    http.Get -> template_handler.handle_templates_api(db_connection)
-    http.Post -> api_handler.handle_templates_create(request, db_connection)
+    http.Get ->
+      template_handler.handle_templates_api(application_context.db_connection)
+    http.Post -> {
+      case application_context.current_user {
+        None -> api_error.unauthorized()
+        Some(current_user) ->
+          api_handler.handle_templates_create(
+            request,
+            application_context.db_connection,
+            Some(user.user_id_to_string(current_user.id)),
+          )
+      }
+    }
     _ -> api_error.method_not_allowed([http.Get, http.Post])
   }
 }
@@ -188,15 +220,34 @@ fn handle_api_templates_dispatch(
 fn handle_api_template_dispatch(
   request: Request,
   template_id: String,
-  db_connection: sqlight.Connection,
+  application_context: Context,
 ) -> Response {
+  let db_connection = application_context.db_connection
   case request.method {
     http.Get ->
       template_handler.handle_template_api_detail(template_id, db_connection)
-    http.Put ->
-      api_handler.handle_template_update(request, template_id, db_connection)
-    http.Delete ->
-      api_handler.handle_template_delete(template_id, db_connection)
+    http.Put -> {
+      case application_context.current_user {
+        None -> api_error.unauthorized()
+        Some(current_user) ->
+          require_template_owner(template_id, current_user, db_connection, fn() {
+            api_handler.handle_template_update(
+              request,
+              template_id,
+              db_connection,
+            )
+          })
+      }
+    }
+    http.Delete -> {
+      case application_context.current_user {
+        None -> api_error.unauthorized()
+        Some(current_user) ->
+          require_template_owner(template_id, current_user, db_connection, fn() {
+            api_handler.handle_template_delete(template_id, db_connection)
+          })
+      }
+    }
     _ -> api_error.method_not_allowed([http.Get, http.Put, http.Delete])
   }
 }
@@ -301,32 +352,62 @@ fn handle_legislation_download(
 
 // --- Template routes ---
 
-fn handle_templates(
-  request: Request,
-  db_connection: sqlight.Connection,
-) -> Response {
+fn handle_templates(request: Request, application_context: Context) -> Response {
+  let db_connection = application_context.db_connection
   case request.method {
     http.Get -> template_handler.handle_templates_list(request, db_connection)
-    http.Post -> template_handler.handle_template_create(request, db_connection)
+    http.Post -> {
+      case application_context.current_user {
+        None -> wisp.redirect("/login")
+        Some(current_user) ->
+          template_handler.handle_template_create(
+            request,
+            db_connection,
+            Some(user.user_id_to_string(current_user.id)),
+          )
+      }
+    }
     _ -> wisp.method_not_allowed([http.Get, http.Post])
   }
 }
 
-fn handle_template_new(request: Request) -> Response {
+fn handle_template_new(
+  request: Request,
+  application_context: Context,
+) -> Response {
   use <- wisp.require_method(request, http.Get)
-  template_handler.handle_template_new_form()
+  case application_context.current_user {
+    None -> wisp.redirect("/login")
+    Some(_) -> template_handler.handle_template_new_form()
+  }
 }
 
 fn handle_template_by_id(
   request: Request,
   template_id: String,
-  db_connection: sqlight.Connection,
+  application_context: Context,
 ) -> Response {
+  let db_connection = application_context.db_connection
   case request.method {
     http.Get ->
       template_handler.handle_template_detail(template_id, db_connection)
-    http.Post ->
-      template_handler.handle_template_delete(template_id, db_connection)
+    http.Post -> {
+      case application_context.current_user {
+        None -> wisp.redirect("/login")
+        Some(current_user) ->
+          require_template_owner_html(
+            template_id,
+            current_user,
+            db_connection,
+            fn() {
+              template_handler.handle_template_delete(
+                template_id,
+                db_connection,
+              )
+            },
+          )
+      }
+    }
     _ -> wisp.method_not_allowed([http.Get, http.Post])
   }
 }
@@ -338,4 +419,63 @@ fn handle_template_download(
 ) -> Response {
   use <- wisp.require_method(request, http.Get)
   template_handler.handle_template_download(request, template_id, db_connection)
+}
+
+// --- Authorization helpers ---
+
+/// Check that the current user owns the template (or the template is unowned).
+/// Returns 403 Forbidden for API routes if the user is not the owner.
+fn require_template_owner(
+  template_id: String,
+  current_user: user.User,
+  db_connection: sqlight.Connection,
+  next: fn() -> Response,
+) -> Response {
+  case template_repo_get_owner(template_id, db_connection) {
+    Error(_) -> api_error.internal_error()
+    Ok(None) -> api_error.not_found("Template")
+    Ok(Some(owner_user_id)) -> {
+      let current_user_id = user.user_id_to_string(current_user.id)
+      case owner_user_id == current_user_id || owner_user_id == "" {
+        True -> next()
+        False -> api_error.forbidden()
+      }
+    }
+  }
+}
+
+/// Check ownership for HTML routes — redirects to template detail on forbidden.
+fn require_template_owner_html(
+  template_id: String,
+  current_user: user.User,
+  db_connection: sqlight.Connection,
+  next: fn() -> Response,
+) -> Response {
+  case template_repo_get_owner(template_id, db_connection) {
+    Error(_) -> wisp.internal_server_error()
+    Ok(None) -> wisp.not_found()
+    Ok(Some(owner_user_id)) -> {
+      let current_user_id = user.user_id_to_string(current_user.id)
+      case owner_user_id == current_user_id || owner_user_id == "" {
+        True -> next()
+        False -> wisp.response(403) |> wisp.string_body("Forbidden")
+      }
+    }
+  }
+}
+
+/// Get the owner_user_id for a template. Returns Some("") for unowned templates.
+fn template_repo_get_owner(
+  template_id: String,
+  db_connection: sqlight.Connection,
+) -> Result(option.Option(String), Nil) {
+  case template_repo.get_by_id(db_connection, template_id) {
+    Ok(Some(template)) ->
+      case template.owner_user_id {
+        Some(owner_id) -> Ok(Some(owner_id))
+        None -> Ok(Some(""))
+      }
+    Ok(None) -> Ok(None)
+    Error(_) -> Error(Nil)
+  }
 }

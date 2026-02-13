@@ -1,6 +1,9 @@
+import envoy
 import gleam/erlang/process
 import gleam/int
 import gleam/io
+import gleam/option.{None}
+import gleam/result
 import mist
 import philstubs/data/database
 import philstubs/web/context.{Context}
@@ -16,11 +19,21 @@ pub fn main() {
   let secret_key_base = wisp.random_string(64)
   let static_directory = static_directory()
 
+  let github_client_id = envoy.get("GITHUB_CLIENT_ID") |> result.unwrap("")
+  let github_client_secret =
+    envoy.get("GITHUB_CLIENT_SECRET") |> result.unwrap("")
+
   use connection <- database.with_connection()
   let assert Ok(_) = database.initialize(connection)
 
   let application_context =
-    Context(static_directory: static_directory, db_connection: connection)
+    Context(
+      static_directory: static_directory,
+      db_connection: connection,
+      current_user: None,
+      github_client_id: github_client_id,
+      github_client_secret: github_client_secret,
+    )
 
   let request_handler = router.handle_request(_, application_context)
 

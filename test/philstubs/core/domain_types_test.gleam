@@ -270,6 +270,7 @@ pub fn legislation_template_json_roundtrip_test() {
       topics: ["housing", "zoning", "affordable housing"],
       created_at: "2024-06-01T12:00:00Z",
       download_count: 42,
+      owner_user_id: option.None,
     )
 
   let encoded = legislation_template.to_json(sample_template) |> json.to_string

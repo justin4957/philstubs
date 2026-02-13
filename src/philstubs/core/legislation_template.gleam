@@ -1,5 +1,6 @@
 import gleam/dynamic/decode
 import gleam/json
+import gleam/option.{type Option, None, Some}
 import philstubs/core/government_level.{type GovernmentLevel}
 import philstubs/core/legislation_type.{type LegislationType}
 
@@ -34,6 +35,7 @@ pub type LegislationTemplate {
     topics: List(String),
     created_at: String,
     download_count: Int,
+    owner_user_id: Option(String),
   )
 }
 
@@ -50,6 +52,10 @@ pub fn to_json(template: LegislationTemplate) -> json.Json {
     #("topics", json.array(template.topics, json.string)),
     #("created_at", json.string(template.created_at)),
     #("download_count", json.int(template.download_count)),
+    #("owner_user_id", case template.owner_user_id {
+      Some(owner_id) -> json.string(owner_id)
+      None -> json.null()
+    }),
   ])
 }
 
@@ -71,6 +77,10 @@ pub fn decoder() -> decode.Decoder(LegislationTemplate) {
   use topics <- decode.field("topics", decode.list(decode.string))
   use created_at <- decode.field("created_at", decode.string)
   use download_count <- decode.field("download_count", decode.int)
+  use owner_user_id <- decode.field(
+    "owner_user_id",
+    decode.optional(decode.string),
+  )
   decode.success(LegislationTemplate(
     id: template_id(id),
     title:,
@@ -82,6 +92,7 @@ pub fn decoder() -> decode.Decoder(LegislationTemplate) {
     topics:,
     created_at:,
     download_count:,
+    owner_user_id:,
   ))
 }
 

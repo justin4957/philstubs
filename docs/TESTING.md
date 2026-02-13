@@ -196,7 +196,7 @@ Tests live in `test/` and follow the gleeunit convention:
 **Error Format** (1 test):
 - `api_legislation_not_found_error_format_test` — GET /api/legislation/:id returns 404 for nonexistent
 
-**Template CRUD via API** (7 tests):
+**Template CRUD via API** (7 tests, all require authentication):
 - `api_template_create_test` — POST /api/templates with JSON body creates template, returns 201
 - `api_template_create_missing_title_test` — Empty title returns 400 with VALIDATION_ERROR code
 - `api_template_create_invalid_json_test` — Malformed JSON body returns 400
@@ -277,9 +277,9 @@ Tests live in `test/` and follow the gleeunit convention:
 - `templates_list_sorted_by_downloads_test` — Sort=downloads orders by download count
 
 **Template Upload Form** (1 test):
-- `template_new_form_test` — GET /templates/new renders upload form with fields
+- `template_new_form_test` — GET /templates/new renders upload form (requires authentication)
 
-**Template Creation** (5 tests):
+**Template Creation** (5 tests, all require authentication):
 - `template_create_success_test` — POST /templates creates template and redirects
 - `template_create_missing_title_test` — Returns 400 with "Title is required" error
 - `template_create_missing_body_test` — Returns 400 with "Template body is required" error
@@ -296,7 +296,7 @@ Tests live in `test/` and follow the gleeunit convention:
 - `template_download_increments_count_test` — Download increments counter from 42 to 43
 - `template_download_not_found_test` — Returns 404 for nonexistent template
 
-**Template Deletion** (2 tests):
+**Template Deletion** (2 tests, require authentication):
 - `template_delete_test` — POST /templates/:id deletes template and redirects to listing
 - `template_delete_not_found_test` — Returns 404 for nonexistent template
 
@@ -304,6 +304,50 @@ Tests live in `test/` and follow the gleeunit convention:
 - `api_templates_list_test` — GET /api/templates returns JSON array with content-type header
 - `api_template_detail_test` — GET /api/templates/:id returns JSON object
 - `api_template_not_found_test` — Returns 404 for nonexistent template
+
+### User Repository Tests (`test/philstubs/data/user_repo_test.gleam`)
+
+**User CRUD** (6 tests):
+- `upsert_creates_new_user_test` — Creates a new user from GitHub OAuth data, verifies all fields
+- `upsert_updates_existing_user_test` — Upserts existing user, verifies fields updated while ID preserved
+- `get_by_id_found_test` — Retrieves user by internal ID
+- `get_by_id_not_found_test` — Returns None for nonexistent ID
+- `get_by_github_id_found_test` — Retrieves user by GitHub ID
+- `get_by_github_id_not_found_test` — Returns None for nonexistent GitHub ID
+
+### Session Repository Tests (`test/philstubs/data/session_repo_test.gleam`)
+
+**Session Management** (5 tests):
+- `create_session_returns_token_test` — Creates session and returns non-empty token string
+- `get_user_by_session_valid_test` — Looks up session token and returns associated user
+- `get_user_by_session_invalid_token_test` — Returns None for nonexistent session token
+- `delete_session_test` — Deletes session, verifies lookup returns None afterward
+- `delete_expired_sessions_test` — Cleanup succeeds even with no sessions
+
+**Configuration** (1 test):
+- `max_age_seconds_test` — Session max age is 604,800 seconds (7 days)
+
+### Auth Handler Tests (`test/philstubs/web/auth_handler_test.gleam`)
+
+**Login Flow** (2 tests):
+- `login_shows_error_when_not_configured_test` — Shows error message when GitHub OAuth env vars not set
+- `login_redirects_to_github_when_configured_test` — Redirects to GitHub OAuth authorize URL with client_id
+
+**OAuth Callback** (4 tests):
+- `callback_missing_code_shows_error_test` — Returns 400 when authorization code is missing
+- `callback_token_exchange_failure_shows_error_test` — Returns 400 when HTTP request to GitHub fails
+- `callback_invalid_token_response_shows_error_test` — Returns 400 when token response lacks access_token
+- `callback_successful_login_test` — Full flow: exchanges code, fetches user, creates session, redirects to /
+
+**Profile Page** (2 tests):
+- `profile_redirects_when_not_logged_in_test` — GET /profile redirects to /login when unauthenticated
+- `profile_shows_user_info_when_logged_in_test` — GET /profile renders username when authenticated
+
+**Auth Protection** (4 tests):
+- `unauthenticated_template_create_redirects_test` — POST /templates redirects to /login when unauthenticated
+- `unauthenticated_api_template_create_returns_401_test` — POST /api/templates returns 401 when unauthenticated
+- `unauthenticated_api_template_delete_returns_401_test` — DELETE /api/templates/:id returns 401
+- `unauthenticated_api_template_update_returns_401_test` — PUT /api/templates/:id returns 401
 
 ### Templates Page UI Tests (`test/philstubs/ui/templates_page_test.gleam`)
 
@@ -638,6 +682,24 @@ curl -X OPTIONS http://localhost:8000/api/legislation -H "Origin: http://example
 # REST API — Error format:
 curl http://localhost:8000/api/legislation/nonexistent    # Expect: 404 with {"error":"...","code":"NOT_FOUND"}
 curl http://localhost:8000/api/nonexistent                # Expect: 404 with {"error":"...","code":"NOT_FOUND"}
+
+# Authentication (requires GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET env vars):
+curl -v http://localhost:8000/login                       # Expect: 303 redirect to GitHub OAuth
+curl http://localhost:8000/profile                        # Expect: 303 redirect to /login (unauthenticated)
+
+# Auth-protected API endpoints (unauthenticated):
+curl -X POST http://localhost:8000/api/templates \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test","description":"","body":"Body","suggested_level":{"kind":"federal"},"suggested_type":"bill","author":"Me","topics":[]}'
+# Expect: 401 Unauthorized
+
+curl -X PUT http://localhost:8000/api/templates/some-id \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test"}'
+# Expect: 401 Unauthorized
+
+curl -X DELETE http://localhost:8000/api/templates/some-id
+# Expect: 401 Unauthorized
 ```
 
 ## Adding New Tests

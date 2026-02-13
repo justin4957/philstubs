@@ -16,7 +16,13 @@ import sqlight
 import wisp/simulate
 
 fn test_context(db_connection: sqlight.Connection) -> context.Context {
-  Context(static_directory: "", db_connection:)
+  Context(
+    static_directory: "",
+    db_connection:,
+    current_user: None,
+    github_client_id: "",
+    github_client_secret: "",
+  )
 }
 
 fn sample_federal_bill() -> Legislation {

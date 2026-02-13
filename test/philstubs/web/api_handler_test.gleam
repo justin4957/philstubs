@@ -1,6 +1,6 @@
 import gleam/http
 import gleam/list
-import gleam/option.{None}
+import gleam/option.{None, Some}
 import gleam/string
 import gleeunit/should
 import philstubs/core/government_level.{County, Federal, Municipal, State}
@@ -14,13 +14,38 @@ import philstubs/data/database
 import philstubs/data/legislation_repo
 import philstubs/data/template_repo
 import philstubs/data/test_helpers
+import philstubs/data/user_repo
 import philstubs/web/context.{Context}
 import philstubs/web/router
 import sqlight
 import wisp/simulate
 
 fn test_context(db_connection: sqlight.Connection) -> context.Context {
-  Context(static_directory: "", db_connection:)
+  Context(
+    static_directory: "",
+    db_connection:,
+    current_user: None,
+    github_client_id: "",
+    github_client_secret: "",
+  )
+}
+
+fn authenticated_context(db_connection: sqlight.Connection) -> context.Context {
+  let assert Ok(test_user) =
+    user_repo.upsert_from_github(
+      db_connection,
+      99_999,
+      "apitestuser",
+      "API Test User",
+      "",
+    )
+  Context(
+    static_directory: "",
+    db_connection:,
+    current_user: Some(test_user),
+    github_client_id: "",
+    github_client_secret: "",
+  )
 }
 
 fn sample_federal_bill() -> Legislation {
@@ -103,6 +128,7 @@ fn sample_housing_template() -> LegislationTemplate {
     topics: ["housing", "zoning"],
     created_at: "2024-06-01T12:00:00Z",
     download_count: 10,
+    owner_user_id: None,
   )
 }
 
@@ -235,7 +261,7 @@ pub fn api_legislation_not_found_error_format_test() {
 pub fn api_template_create_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
   let json_body =
     "{\"title\":\"Test Template\",\"description\":\"A test\",\"body\":\"SECTION 1.\",\"suggested_level\":{\"kind\":\"federal\"},\"suggested_type\":\"bill\",\"author\":\"Test Author\",\"topics\":[\"test\"]}"
@@ -259,7 +285,7 @@ pub fn api_template_create_test() {
 pub fn api_template_create_missing_title_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
   let json_body =
     "{\"title\":\"\",\"description\":\"A test\",\"body\":\"SECTION 1.\",\"suggested_level\":{\"kind\":\"federal\"},\"suggested_type\":\"bill\",\"author\":\"Test Author\",\"topics\":[\"test\"]}"
@@ -279,7 +305,7 @@ pub fn api_template_create_missing_title_test() {
 pub fn api_template_create_invalid_json_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
   let response =
     simulate.request(http.Post, "/api/templates")
@@ -295,7 +321,7 @@ pub fn api_template_create_invalid_json_test() {
 pub fn api_template_update_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
   let assert Ok(Nil) =
     template_repo.insert(connection, sample_housing_template())
@@ -318,7 +344,7 @@ pub fn api_template_update_test() {
 pub fn api_template_update_not_found_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
   let json_body =
     "{\"title\":\"Test\",\"description\":\"Test\",\"body\":\"Body\",\"suggested_level\":{\"kind\":\"federal\"},\"suggested_type\":\"bill\",\"author\":\"Author\",\"topics\":[]}"
@@ -339,7 +365,7 @@ pub fn api_template_update_not_found_test() {
 pub fn api_template_delete_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
   let assert Ok(Nil) =
     template_repo.insert(connection, sample_housing_template())
@@ -357,7 +383,7 @@ pub fn api_template_delete_test() {
 pub fn api_template_delete_not_found_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
   let response =
     simulate.request(http.Delete, "/api/templates/nonexistent")
