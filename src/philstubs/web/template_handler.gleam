@@ -11,6 +11,7 @@ import philstubs/core/legislation_template.{
   type LegislationTemplate, LegislationTemplate,
 }
 import philstubs/core/legislation_type.{type LegislationType}
+import philstubs/data/similarity_repo
 import philstubs/data/template_repo
 import philstubs/ui/template_detail_page
 import philstubs/ui/template_form_page
@@ -133,10 +134,20 @@ pub fn handle_template_detail(
   db_connection: sqlight.Connection,
 ) -> Response {
   case template_repo.get_by_id(db_connection, template_id) {
-    Ok(Some(template)) ->
-      template_detail_page.template_detail_page(template)
+    Ok(Some(template)) -> {
+      let template_matches =
+        similarity_repo.find_template_matches(
+          db_connection,
+          template_id,
+          0.3,
+          10,
+        )
+        |> result.unwrap([])
+
+      template_detail_page.template_detail_page(template, template_matches)
       |> element.to_document_string
       |> wisp.html_response(200)
+    }
     Ok(None) -> wisp.not_found()
     Error(_) -> wisp.internal_server_error()
   }

@@ -8,6 +8,9 @@ import philstubs/core/government_level
 import philstubs/core/legislation.{type Legislation}
 import philstubs/core/legislation_status
 import philstubs/core/legislation_type
+import philstubs/core/similarity_types.{
+  type AdoptionEvent, type SimilarLegislation,
+}
 import philstubs/ui/components
 import philstubs/ui/layout
 
@@ -16,6 +19,8 @@ import philstubs/ui/layout
 pub fn legislation_detail_page(
   record: Legislation,
   related_legislation: List(Legislation),
+  similar_legislation: List(SimilarLegislation),
+  adoption_timeline: List(AdoptionEvent),
 ) -> Element(Nil) {
   let legislation_id = legislation.legislation_id_to_string(record.id)
 
@@ -27,7 +32,13 @@ pub fn legislation_detail_page(
         legislation_header(record),
         html.div([attribute.class("legislation-content-layout")], [
           body_section(record),
-          metadata_sidebar(record, legislation_id, related_legislation),
+          metadata_sidebar(
+            record,
+            legislation_id,
+            related_legislation,
+            similar_legislation,
+            adoption_timeline,
+          ),
         ]),
       ]),
     ],
@@ -126,6 +137,8 @@ fn metadata_sidebar(
   record: Legislation,
   legislation_id: String,
   related_legislation: List(Legislation),
+  similar_legislation: List(SimilarLegislation),
+  adoption_timeline: List(AdoptionEvent),
 ) -> Element(Nil) {
   html.aside([attribute.class("legislation-sidebar")], [
     html.h3([], [html.text("Details")]),
@@ -153,6 +166,8 @@ fn metadata_sidebar(
     components.topics_section(record.topics),
     source_link_section(record.source_url),
     actions_section(legislation_id, record.topics),
+    similar_section(legislation_id, similar_legislation),
+    adoption_timeline_section(adoption_timeline),
     related_section(related_legislation),
   ])
 }
@@ -226,6 +241,66 @@ fn actions_section(legislation_id: String, topics: List(String)) -> Element(Nil)
       }
     },
   ])
+}
+
+fn similar_section(
+  legislation_id: String,
+  similar_legislation: List(SimilarLegislation),
+) -> Element(Nil) {
+  case similar_legislation {
+    [] -> element.none()
+    similar_list ->
+      html.div([attribute.class("similarity-section")], [
+        html.h3([], [html.text("Similar Legislation")]),
+        html.ul(
+          [attribute.class("similar-list")],
+          list.map(similar_list, fn(similar_record) {
+            let similar_id =
+              legislation.legislation_id_to_string(
+                similar_record.legislation.id,
+              )
+            let jurisdiction_label =
+              government_level.jurisdiction_label(
+                similar_record.legislation.level,
+              )
+            html.li([], [
+              components.similarity_badge(similar_record.similarity_score),
+              html.a([attribute.href("/legislation/" <> similar_id)], [
+                html.text(similar_record.legislation.title),
+              ]),
+              html.span([attribute.class("similar-jurisdiction")], [
+                html.text(jurisdiction_label),
+              ]),
+              html.a(
+                [
+                  attribute.href(
+                    "/legislation/" <> legislation_id <> "/diff/" <> similar_id,
+                  ),
+                  attribute.class("diff-link"),
+                ],
+                [html.text("diff")],
+              ),
+            ])
+          }),
+        ),
+      ])
+  }
+}
+
+fn adoption_timeline_section(
+  adoption_timeline: List(AdoptionEvent),
+) -> Element(Nil) {
+  case adoption_timeline {
+    [] -> element.none()
+    timeline_events ->
+      html.div([attribute.class("adoption-timeline")], [
+        html.h3([], [html.text("Adoption Timeline")]),
+        html.ul(
+          [attribute.class("adoption-timeline-list")],
+          list.map(timeline_events, components.adoption_timeline_item),
+        ),
+      ])
+  }
 }
 
 fn related_section(related_legislation: List(Legislation)) -> Element(Nil) {

@@ -19,6 +19,7 @@ import philstubs/web/browse_handler
 import philstubs/web/context.{type Context}
 import philstubs/web/legislation_handler
 import philstubs/web/middleware
+import philstubs/web/similarity_handler
 import philstubs/web/template_handler
 import sqlight
 import wisp.{type Request, type Response}
@@ -56,6 +57,8 @@ pub fn handle_request(
     ["profile"] -> auth_handler.handle_profile(request, enriched_context)
     ["legislation", legislation_id, "download"] ->
       handle_legislation_download(request, legislation_id, db_connection)
+    ["legislation", legislation_id, "diff", comparison_id] ->
+      handle_diff_view(request, legislation_id, comparison_id, db_connection)
     ["legislation", legislation_id] ->
       handle_legislation_by_id(request, legislation_id, db_connection)
     ["templates"] -> handle_templates(request, enriched_context)
@@ -146,10 +149,16 @@ fn route_api(
         ["legislation"] -> handle_api_legislation_list(request, db_connection)
         ["legislation", "stats"] ->
           handle_api_legislation_stats(request, db_connection)
+        ["legislation", legislation_id, "similar"] ->
+          handle_api_similar_legislation(request, legislation_id, db_connection)
+        ["legislation", legislation_id, "adoption-timeline"] ->
+          handle_api_adoption_timeline(request, legislation_id, db_connection)
         ["legislation", legislation_id] ->
           handle_api_legislation_detail(request, legislation_id, db_connection)
         ["templates"] ->
           handle_api_templates_dispatch(request, application_context)
+        ["templates", template_id, "matches"] ->
+          handle_api_template_matches(request, template_id, db_connection)
         ["templates", template_id, "download"] ->
           handle_api_template_download(request, template_id, db_connection)
         ["templates", template_id] ->
@@ -162,6 +171,8 @@ fn route_api(
         ["levels", level, "jurisdictions"] ->
           handle_api_level_jurisdictions(request, level, db_connection)
         ["topics"] -> handle_api_topics_list(request, db_connection)
+        ["similarity", "compute"] ->
+          handle_api_compute_similarities(request, db_connection)
         _ -> api_error.not_found("Endpoint")
       }
       api_middleware.apply_cors(response)
@@ -347,6 +358,59 @@ fn handle_browse_topics(
 ) -> Response {
   use <- wisp.require_method(request, http.Get)
   browse_handler.handle_browse_topics(db_connection)
+}
+
+// --- Diff view ---
+
+fn handle_diff_view(
+  request: Request,
+  legislation_id: String,
+  comparison_id: String,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  similarity_handler.handle_diff_view(
+    legislation_id,
+    comparison_id,
+    db_connection,
+  )
+}
+
+// --- Similarity API routes ---
+
+fn handle_api_similar_legislation(
+  request: Request,
+  legislation_id: String,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  similarity_handler.handle_similar_legislation(legislation_id, db_connection)
+}
+
+fn handle_api_adoption_timeline(
+  request: Request,
+  legislation_id: String,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  similarity_handler.handle_adoption_timeline(legislation_id, db_connection)
+}
+
+fn handle_api_template_matches(
+  request: Request,
+  template_id: String,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  similarity_handler.handle_template_matches(template_id, db_connection)
+}
+
+fn handle_api_compute_similarities(
+  request: Request,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Post)
+  similarity_handler.handle_compute_similarities(db_connection)
 }
 
 // --- Legislation routes ---
