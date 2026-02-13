@@ -3,6 +3,9 @@ import gleam/list
 import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html
+import philstubs/core/government_level
+import philstubs/core/similarity.{type DiffHunk, Added, Removed, Same}
+import philstubs/core/similarity_types.{type AdoptionEvent}
 
 /// Render an inline badge with a CSS class and text label.
 pub fn badge(class_name: String, badge_text: String) -> Element(Nil) {
@@ -123,4 +126,59 @@ pub fn level_overview_card(
       html.text(description),
     ]),
   ])
+}
+
+/// Render a similarity score badge with color coding.
+/// Green >0.8, yellow >0.5, red <=0.5.
+pub fn similarity_badge(score: Float) -> Element(Nil) {
+  let percentage_text = similarity.format_as_percentage(score)
+  let color_class = case score >=. 0.8 {
+    True -> "similarity-badge similarity-high"
+    False ->
+      case score >=. 0.5 {
+        True -> "similarity-badge similarity-medium"
+        False -> "similarity-badge similarity-low"
+      }
+  }
+
+  html.span([attribute.class(color_class)], [html.text(percentage_text)])
+}
+
+/// Render an adoption timeline entry showing date, jurisdiction, and score.
+pub fn adoption_timeline_item(event: AdoptionEvent) -> Element(Nil) {
+  let jurisdiction_label = government_level.jurisdiction_label(event.level)
+
+  html.li([attribute.class("adoption-timeline-item")], [
+    html.span([attribute.class("adoption-timeline-date")], [
+      html.text(event.introduced_date),
+    ]),
+    html.a([attribute.href("/legislation/" <> event.legislation_id)], [
+      html.text(event.title),
+    ]),
+    html.span([attribute.class("adoption-timeline-jurisdiction")], [
+      html.text(jurisdiction_label),
+    ]),
+    similarity_badge(event.similarity_score),
+  ])
+}
+
+/// Render a styled diff line based on hunk type.
+pub fn diff_line(hunk: DiffHunk) -> Element(Nil) {
+  case hunk {
+    Same(text) ->
+      html.div([attribute.class("diff-line diff-same")], [
+        html.span([attribute.class("diff-prefix")], [html.text("  ")]),
+        html.text(text),
+      ])
+    Added(text) ->
+      html.div([attribute.class("diff-line diff-added")], [
+        html.span([attribute.class("diff-prefix")], [html.text("+ ")]),
+        html.text(text),
+      ])
+    Removed(text) ->
+      html.div([attribute.class("diff-line diff-removed")], [
+        html.span([attribute.class("diff-prefix")], [html.text("- ")]),
+        html.text(text),
+      ])
+  }
 }

@@ -8,6 +8,7 @@ import philstubs/core/government_level
 import philstubs/core/legislation.{type Legislation}
 import philstubs/core/legislation_type
 import philstubs/data/legislation_repo
+import philstubs/data/similarity_repo
 import philstubs/ui/legislation_detail_page
 import sqlight
 import wisp.{type Request, type Response}
@@ -28,9 +29,19 @@ pub fn handle_legislation_detail(
         )
         |> result.unwrap([])
 
+      let similar_legislation =
+        similarity_repo.find_similar(db_connection, legislation_id, 0.3, 10)
+        |> result.unwrap([])
+
+      let adoption_timeline =
+        similarity_repo.adoption_timeline(db_connection, legislation_id, 0.3)
+        |> result.unwrap([])
+
       legislation_detail_page.legislation_detail_page(
         record,
         related_legislation,
+        similar_legislation,
+        adoption_timeline,
       )
       |> element.to_document_string
       |> wisp.html_response(200)

@@ -85,7 +85,7 @@ Tests live in `test/` and follow the gleeunit convention:
 ### Migration Tests (`test/philstubs/data/migration_test.gleam`)
 
 **Migration Runner** (2 tests):
-- `run_migrations_fresh_database_test` — Runs migrations on empty `:memory:` DB, verifies tables exist
+- `run_migrations_fresh_database_test` — Runs all 5 migrations on empty `:memory:` DB, verifies tables exist (legislation, legislation_templates, similarity tables)
 - `run_migrations_idempotent_test` — Runs migrations twice, verifies second run applies zero changes
 
 ### Legislation Repository Tests (`test/philstubs/data/legislation_repo_test.gleam`)
@@ -173,6 +173,108 @@ Tests live in `test/` and follow the gleeunit convention:
 
 **Download Count** (1 test):
 - `increment_download_count_test` — Verify count increments from 42 to 43
+
+### Similarity Algorithm Tests (`test/philstubs/core/similarity_test.gleam`)
+
+**Text Normalization** (3 tests):
+- `normalize_text_lowercases_and_strips_punctuation_test` — Lowercases text and removes punctuation
+- `normalize_text_collapses_whitespace_test` — Collapses multiple spaces to single space and trims
+- `normalize_text_empty_string_test` — Empty string returns empty string
+
+**Word N-grams** (4 tests):
+- `word_ngrams_trigrams_test` — Extracts trigrams from "the quick brown fox jumps"
+- `word_ngrams_short_text_test` — Text shorter than n returns empty set
+- `word_ngrams_bigrams_test` — Extracts bigrams from "an act to establish"
+- `word_ngrams_exact_length_test` — Text with exactly n words returns single n-gram
+
+**Jaccard Similarity** (4 tests):
+- `jaccard_similarity_identical_sets_test` — Returns 1.0 for identical sets
+- `jaccard_similarity_disjoint_sets_test` — Returns 0.0 for disjoint sets
+- `jaccard_similarity_partial_overlap_test` — Returns expected fraction for partial overlap
+- `jaccard_similarity_empty_sets_test` — Returns 0.0 for empty sets
+
+**Text Similarity** (3 tests):
+- `text_similarity_identical_test` — Identical text returns 1.0
+- `text_similarity_completely_different_test` — Unrelated text returns near 0.0
+- `text_similarity_partial_match_test` — Similar text returns high but not perfect score
+
+**Title Similarity** (2 tests):
+- `title_similarity_test` — Similar titles with bigram comparison return >0.5
+- `title_similarity_different_test` — Different titles return <0.3
+
+**Topic Overlap** (4 tests):
+- `topic_overlap_identical_test` — Identical topic lists return 1.0
+- `topic_overlap_partial_test` — Partial overlap returns expected Jaccard fraction
+- `topic_overlap_empty_test` — Empty topic lists return 0.0
+- `topic_overlap_case_insensitive_test` — Case-insensitive comparison
+
+**Combined Similarity** (2 tests):
+- `combined_similarity_weights_test` — Identical inputs verify 0.7 + 0.2 + 0.1 = 1.0 weighting
+- `combined_similarity_zero_test` — Completely different inputs return <0.3
+
+**Text Diff** (4 tests):
+- `compute_diff_identical_test` — Identical text produces all Same hunks
+- `compute_diff_completely_different_test` — Different text produces Removed and Added hunks
+- `compute_diff_mixed_test` — Mixed changes produce Same, Added, and Removed hunks
+- `compute_diff_empty_texts_test` — Empty texts produce single hunk
+
+**Formatting** (1 test):
+- `format_as_percentage_test` — Converts 0.87 → "87%", 1.0 → "100%", 0.0 → "0%"
+
+### Similarity Repository Tests (`test/philstubs/data/similarity_repo_test.gleam`)
+
+**Store and Query** (4 tests):
+- `store_and_find_similar_test` — Store similarity, query back, verify all scores and joined legislation
+- `find_similar_respects_min_score_test` — Only returns results above minimum score threshold
+- `find_similar_orders_by_score_test` — Higher similarity scores returned first
+- `find_similar_limits_results_test` — Respects max_results limit parameter
+
+**Edge Cases** (3 tests):
+- `find_similar_empty_test` — Nonexistent legislation returns empty list
+- `store_similarity_idempotent_test` — INSERT OR REPLACE updates scores for existing pairs
+- `find_similar_bidirectional_test` — Similarity queryable from either direction (A→B and B→A)
+
+**Template Matching** (1 test):
+- `store_template_match_and_find_test` — Store template-to-legislation match, query back with joined legislation
+
+**Adoption Timeline** (1 test):
+- `adoption_timeline_ordered_by_date_test` — Similar legislation returned in chronological order by introduced_date
+
+**Management** (2 tests):
+- `delete_similarities_for_test` — Removes all similarity pairs for a given legislation ID
+- `count_similarities_test` — Counts total stored similarities (both directions)
+
+### Similarity Pipeline Tests (`test/philstubs/core/similarity_pipeline_test.gleam`)
+
+**Legislation Similarity Computation** (3 tests):
+- `compute_similarities_for_stores_results_test` — Computes and stores similarity pairs above threshold
+- `compute_similarities_skips_low_scores_test` — Below-threshold pairs not stored
+- `compute_similarities_for_nonexistent_test` — Nonexistent legislation ID stores 0 pairs
+
+**Batch Operations** (1 test):
+- `compute_all_similarities_test` — Pairwise computation across all legislation, results queryable
+
+**Template Matching** (1 test):
+- `compute_template_matches_test` — Computes template-to-legislation matches, stores results
+
+### Similarity Handler Tests (`test/philstubs/web/similarity_handler_test.gleam`)
+
+**Similar Legislation API** (2 tests):
+- `api_similar_legislation_test` — GET /api/legislation/:id/similar returns JSON with similarity scores
+- `api_similar_legislation_empty_test` — Returns empty similar array when no similarities exist
+
+**Adoption Timeline API** (2 tests):
+- `api_adoption_timeline_test` — GET /api/legislation/:id/adoption-timeline returns chronological events
+- `api_adoption_timeline_empty_test` — Returns empty timeline for nonexistent legislation
+
+**Diff View** (3 tests):
+- `diff_page_renders_test` — GET /legislation/:id/diff/:comparison_id renders HTML diff view with both titles
+- `diff_page_not_found_test` — Returns 404 when comparison legislation not found
+- `diff_page_both_not_found_test` — Returns 404 when both legislation not found
+
+**Similarity Computation API** (2 tests):
+- `api_compute_similarities_test` — POST /api/similarity/compute triggers computation and returns counts
+- `api_compute_similarities_get_not_allowed_test` — GET to compute endpoint returns 405
 
 ### Browse Handler Tests (`test/philstubs/web/browse_handler_test.gleam`)
 
@@ -710,6 +812,23 @@ curl http://localhost:8000/api/levels/state/jurisdictions                   # Ex
 curl "http://localhost:8000/api/levels/county/jurisdictions?state=CA"       # Expect: JSON with CA county jurisdictions
 curl "http://localhost:8000/api/levels/municipal/jurisdictions?state=WA"    # Expect: JSON with WA municipal jurisdictions
 curl http://localhost:8000/api/topics                                       # Expect: JSON with topics array
+
+# Similarity API:
+curl http://localhost:8000/api/legislation/LEGISLATION_ID/similar
+# Expect: JSON with legislation_id and similar array containing similarity scores
+
+curl http://localhost:8000/api/legislation/LEGISLATION_ID/adoption-timeline
+# Expect: JSON with legislation_id and timeline array ordered by introduced_date
+
+curl http://localhost:8000/api/templates/TEMPLATE_ID/matches
+# Expect: JSON with template_id and matches array
+
+curl -X POST http://localhost:8000/api/similarity/compute
+# Expect: 200 with legislation_pairs_stored and template_matches_stored counts
+
+# Diff view:
+curl http://localhost:8000/legislation/LEGISLATION_ID/diff/COMPARISON_ID
+# Expect: HTML diff page comparing two pieces of legislation
 
 # REST API — CORS:
 curl -X OPTIONS http://localhost:8000/api/legislation -H "Origin: http://example.com" -v

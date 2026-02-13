@@ -1460,6 +1460,256 @@ footer {
   color: var(--color-text-secondary);
 }
 
+/* === Similarity & Diff === */
+
+.similarity-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+.similarity-high {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.similarity-medium {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.similarity-low {
+  background: #fbe9e7;
+  color: #c62828;
+}
+
+.similarity-section {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.similarity-section h3 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.similar-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.similar-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #eee;
+  flex-wrap: wrap;
+}
+
+.similar-list li:last-child {
+  border-bottom: none;
+}
+
+.similar-list a {
+  color: #1565c0;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.similar-list a:hover {
+  text-decoration: underline;
+}
+
+.similar-jurisdiction {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.similar-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.diff-link {
+  font-size: 0.75rem;
+  color: #1565c0;
+  text-decoration: none;
+}
+
+.diff-link:hover {
+  text-decoration: underline;
+}
+
+/* Adoption Timeline */
+
+.adoption-timeline {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.adoption-timeline h3 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.adoption-timeline-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.adoption-timeline-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #eee;
+  flex-wrap: wrap;
+}
+
+.adoption-timeline-item:last-child {
+  border-bottom: none;
+}
+
+.adoption-timeline-date {
+  font-size: 0.8rem;
+  color: #666;
+  font-family: var(--font-mono);
+  min-width: 6em;
+}
+
+.adoption-timeline-item a {
+  color: #1565c0;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.adoption-timeline-item a:hover {
+  text-decoration: underline;
+}
+
+.adoption-timeline-jurisdiction {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+/* Diff View Page */
+
+.diff-view {
+  max-width: var(--max-width-wide);
+  margin: 0 auto;
+}
+
+.diff-header {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.diff-header-item {
+  flex: 1;
+}
+
+.diff-header-item h2 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.1rem;
+}
+
+.diff-header-item .diff-header-meta {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.diff-content {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.diff-line {
+  padding: 0.1rem 0.75rem;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.diff-same {
+  background: #fff;
+}
+
+.diff-added {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+.diff-removed {
+  background: #fbe9e7;
+  color: #b71c1c;
+}
+
+.diff-prefix {
+  user-select: none;
+  color: #999;
+  margin-right: 0.5rem;
+}
+
+/* Template matches section */
+
+.template-matches-section {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.template-matches-section h3 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.template-matches-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.template-matches-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #eee;
+  flex-wrap: wrap;
+}
+
+.template-matches-list li:last-child {
+  border-bottom: none;
+}
+
+.template-matches-list a {
+  color: #1565c0;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.template-matches-list a:hover {
+  text-decoration: underline;
+}
+
 /* Responsive */
 
 @media (max-width: 600px) {
