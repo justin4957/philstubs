@@ -172,6 +172,68 @@ Tests live in `test/` and follow the gleeunit convention:
 **Navigation** (1 test):
 - `browse_link_in_navigation_test` — Browse link appears in site navigation
 
+### Stats Repository Tests (`test/philstubs/data/stats_repo_test.gleam`)
+
+**Legislation Statistics** (5 tests):
+- `get_legislation_stats_total_test` — Verifies total legislation count across all levels
+- `get_legislation_stats_by_level_test` — Counts grouped by government level (federal, state, county, municipal)
+- `get_legislation_stats_by_type_test` — Counts grouped by legislation type (bill, resolution, ordinance)
+- `get_legislation_stats_by_status_test` — Counts grouped by status (introduced, enacted, in_committee)
+- `get_legislation_stats_empty_db_test` — All counts return 0 on empty database
+
+### API Handler Tests (`test/philstubs/web/api_handler_test.gleam`)
+
+**Legislation API** (4 tests):
+- `api_legislation_list_test` — GET /api/legislation returns paginated JSON with items, total_count, page
+- `api_legislation_list_with_level_filter_test` — Filtering by level=federal returns only federal legislation
+- `api_legislation_list_empty_test` — Empty database returns total_count 0
+- `api_legislation_list_has_cors_headers_test` — Response includes Access-Control-Allow-Origin: * header
+
+**Legislation Stats** (2 tests):
+- `api_legislation_stats_test` — GET /api/legislation/stats returns total, by_level, by_type, by_status
+- `api_legislation_stats_empty_test` — Empty database returns total 0 with empty arrays
+
+**Error Format** (1 test):
+- `api_legislation_not_found_error_format_test` — GET /api/legislation/:id returns 404 for nonexistent
+
+**Template CRUD via API** (7 tests):
+- `api_template_create_test` — POST /api/templates with JSON body creates template, returns 201
+- `api_template_create_missing_title_test` — Empty title returns 400 with VALIDATION_ERROR code
+- `api_template_create_invalid_json_test` — Malformed JSON body returns 400
+- `api_template_update_test` — PUT /api/templates/:id updates template fields, returns 200
+- `api_template_update_not_found_test` — PUT to nonexistent template returns 404 with NOT_FOUND code
+- `api_template_delete_test` — DELETE /api/templates/:id returns 204 and removes from database
+- `api_template_delete_not_found_test` — DELETE nonexistent template returns 404
+
+**Template Download via API** (3 tests):
+- `api_template_download_text_test` — GET /api/templates/:id/download returns text/plain content
+- `api_template_download_markdown_test` — GET /api/templates/:id/download?format=markdown returns markdown
+- `api_template_download_not_found_test` — Download of nonexistent template returns 404
+
+**Levels API** (2 tests):
+- `api_levels_list_test` — GET /api/levels returns levels array with level, label, and count fields
+- `api_levels_list_empty_test` — Empty database returns empty levels array
+
+**Jurisdictions API** (5 tests):
+- `api_level_state_jurisdictions_test` — GET /api/levels/state/jurisdictions returns state names with counts
+- `api_level_county_jurisdictions_test` — GET /api/levels/county/jurisdictions?state=CA returns county names
+- `api_level_county_requires_state_param_test` — County jurisdictions without state param returns 400
+- `api_level_municipal_jurisdictions_test` — GET /api/levels/municipal/jurisdictions?state=WA returns municipalities
+- `api_level_unknown_returns_not_found_test` — Unknown level returns 404 with NOT_FOUND code
+
+**Topics API** (2 tests):
+- `api_topics_list_test` — GET /api/topics returns topics array with topic and count fields
+- `api_topics_list_empty_test` — Empty database returns empty topics array
+
+**CORS** (2 tests):
+- `api_cors_headers_on_get_test` — All API responses include CORS headers
+- `api_cors_preflight_test` — OPTIONS requests return 204 with CORS headers
+
+**Error Handling** (3 tests):
+- `api_templates_method_not_allowed_test` — PATCH to /api/templates returns 405 with METHOD_NOT_ALLOWED
+- `api_unknown_endpoint_test` — Unknown API path returns 404 with NOT_FOUND
+- `api_json_content_type_on_responses_test` — API responses use application/json content-type
+
 ### Legislation Handler Tests (`test/philstubs/web/legislation_handler_test.gleam`)
 
 **Legislation Detail View** (14 tests):
@@ -537,6 +599,45 @@ curl http://localhost:8000/browse/states              # Expect: HTML with state 
 curl http://localhost:8000/browse/state/CA             # Expect: HTML with CA counties/municipalities
 curl -v http://localhost:8000/browse/federal           # Expect: 303 redirect to /search?level=federal
 curl http://localhost:8000/browse/topics               # Expect: HTML with topic list and counts
+
+# REST API — Legislation:
+curl http://localhost:8000/api/legislation                    # Expect: Paginated JSON list
+curl "http://localhost:8000/api/legislation?level=federal"     # Expect: Filtered by federal level
+curl "http://localhost:8000/api/legislation?page=2&per_page=5" # Expect: Page 2, 5 per page
+curl http://localhost:8000/api/legislation/stats              # Expect: JSON with total, by_level, by_type, by_status
+
+# REST API — Templates CRUD:
+curl http://localhost:8000/api/templates                      # Expect: JSON array of templates
+curl -X POST http://localhost:8000/api/templates \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test","description":"Desc","body":"Body","suggested_level":{"kind":"federal"},"suggested_type":"bill","author":"Me","topics":["test"]}'
+# Expect: 201 with created template JSON
+
+curl -X PUT http://localhost:8000/api/templates/TEMPLATE_ID \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Updated","description":"New","body":"New body","suggested_level":{"kind":"federal"},"suggested_type":"bill","author":"Me","topics":["updated"]}'
+# Expect: 200 with updated template JSON
+
+curl -X DELETE http://localhost:8000/api/templates/TEMPLATE_ID
+# Expect: 204 No Content
+
+curl "http://localhost:8000/api/templates/TEMPLATE_ID/download?format=text"
+# Expect: Plain text download
+
+# REST API — Browse Data:
+curl http://localhost:8000/api/levels                                      # Expect: JSON with levels array
+curl http://localhost:8000/api/levels/state/jurisdictions                   # Expect: JSON with state jurisdictions
+curl "http://localhost:8000/api/levels/county/jurisdictions?state=CA"       # Expect: JSON with CA county jurisdictions
+curl "http://localhost:8000/api/levels/municipal/jurisdictions?state=WA"    # Expect: JSON with WA municipal jurisdictions
+curl http://localhost:8000/api/topics                                       # Expect: JSON with topics array
+
+# REST API — CORS:
+curl -X OPTIONS http://localhost:8000/api/legislation -H "Origin: http://example.com" -v
+# Expect: 204 with Access-Control-Allow-Origin: * headers
+
+# REST API — Error format:
+curl http://localhost:8000/api/legislation/nonexistent    # Expect: 404 with {"error":"...","code":"NOT_FOUND"}
+curl http://localhost:8000/api/nonexistent                # Expect: 404 with {"error":"...","code":"NOT_FOUND"}
 ```
 
 ## Adding New Tests
