@@ -3,6 +3,8 @@ import gleam/json
 import gleam/option.{None, Some}
 import lustre/element
 import philstubs/core/user
+import philstubs/data/browse_repo
+import philstubs/data/stats_repo
 import philstubs/data/template_repo
 import philstubs/search/search_query
 import philstubs/search/search_repo
@@ -34,7 +36,7 @@ pub fn handle_request(
   let db_connection = enriched_context.db_connection
 
   case wisp.path_segments(request) {
-    [] -> index_page(request)
+    [] -> index_page(request, db_connection)
     ["health"] -> health_check(request)
     ["browse"] -> handle_browse_root(request, db_connection)
     ["browse", "federal"] -> handle_browse_federal(request)
@@ -69,10 +71,31 @@ pub fn handle_request(
   }
 }
 
-fn index_page(request: Request) -> Response {
+fn index_page(request: Request, db_connection: sqlight.Connection) -> Response {
   use <- wisp.require_method(request, http.Get)
 
-  pages.landing_page()
+  let stats = case stats_repo.get_legislation_stats(db_connection) {
+    Ok(legislation_stats) -> legislation_stats
+    Error(_) ->
+      stats_repo.LegislationStats(
+        total: 0,
+        by_level: [],
+        by_type: [],
+        by_status: [],
+      )
+  }
+
+  let template_count = case template_repo.count_all(db_connection) {
+    Ok(count) -> count
+    Error(_) -> 0
+  }
+
+  let level_counts = case browse_repo.count_by_government_level(db_connection) {
+    Ok(counts) -> counts
+    Error(_) -> []
+  }
+
+  pages.landing_page(stats, template_count, level_counts)
   |> element.to_document_string
   |> wisp.html_response(200)
 }

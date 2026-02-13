@@ -15,10 +15,46 @@ Tests live in `test/` and follow the gleeunit convention:
 
 ## Current Tests
 
-### UI Tests (`test/philstubs_test.gleam`)
+### Landing Page Tests (`test/philstubs_test.gleam`)
 
-1. **`landing_page_renders_test`** — Verifies the Lustre landing page renders
-   to an HTML string containing expected content (title, tagline, government levels).
+**Landing Page** (7 tests):
+- `landing_page_renders_test` — Verifies the Lustre landing page renders with title, tagline, and government levels
+- `landing_page_shows_stats_test` — Verifies live stats (legislation count, template count) are rendered
+- `landing_page_shows_search_bar_test` — Verifies the hero search bar form renders with /search action
+- `landing_page_shows_how_it_works_test` — Verifies the How It Works section with Browse, Search, Templates cards
+- `landing_page_shows_level_counts_test` — Verifies level counts display in the Government Levels overview
+- `landing_page_shows_cta_test` — Verifies the "Start Exploring" CTA renders
+- `landing_page_empty_data_test` — Verifies page renders correctly with zero/empty data
+
+### Shared Component Tests (`test/philstubs/ui/components_test.gleam`)
+
+**Badge** (2 tests):
+- `badge_renders_test` — Renders badge with CSS class and text (e.g., "level-badge" + "Federal")
+- `badge_custom_class_test` — Custom class names applied correctly (e.g., "status-badge")
+
+**Metadata Item** (1 test):
+- `metadata_item_renders_test` — Renders label/value pair with metadata-item/metadata-label/metadata-value classes
+
+**Topics Section** (2 tests):
+- `topics_section_renders_test` — Renders topic tags with topic-tags CSS class
+- `topics_section_empty_returns_none_test` — Empty topics list renders as empty string (element.none())
+
+**Stat Card** (1 test):
+- `stat_card_renders_test` — Renders stat-card with value and label
+
+**Search Bar** (2 tests):
+- `search_bar_renders_test` — Renders search form with placeholder and /search action
+- `search_bar_has_accessible_label_test` — Includes sr-only label for screen reader accessibility
+
+**Stats Row** (1 test):
+- `stats_row_renders_multiple_test` — Renders multiple stat cards in a stats-row container
+
+**Action Card** (1 test):
+- `action_card_renders_test` — Renders linked card with icon, title, description, and URL
+
+**Level Overview Card** (2 tests):
+- `level_overview_card_renders_test` — Renders card with title, count, description, and link
+- `level_overview_card_zero_count_test` — Renders correctly with zero count
 
 ### Domain Type Tests (`test/philstubs/core/domain_types_test.gleam`)
 

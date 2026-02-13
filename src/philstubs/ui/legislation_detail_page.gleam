@@ -8,6 +8,7 @@ import philstubs/core/government_level
 import philstubs/core/legislation.{type Legislation}
 import philstubs/core/legislation_status
 import philstubs/core/legislation_type
+import philstubs/ui/components
 import philstubs/ui/layout
 
 /// Render the full legislation detail page with header, metadata sidebar,
@@ -68,8 +69,14 @@ fn legislation_header(record: Legislation) -> Element(Nil) {
       },
     ]),
     html.div([attribute.class("legislation-badges")], [
-      badge("level-badge", government_level.jurisdiction_label(record.level)),
-      badge("type-badge", legislation_type.to_string(record.legislation_type)),
+      components.badge(
+        "level-badge",
+        government_level.jurisdiction_label(record.level),
+      ),
+      components.badge(
+        "type-badge",
+        legislation_type.to_string(record.legislation_type),
+      ),
       status_badge(record.status),
       case record.introduced_date {
         "" -> element.none()
@@ -122,32 +129,31 @@ fn metadata_sidebar(
 ) -> Element(Nil) {
   html.aside([attribute.class("legislation-sidebar")], [
     html.h3([], [html.text("Details")]),
-    metadata_item(
+    components.metadata_item(
       "Jurisdiction",
       government_level.jurisdiction_label(record.level),
     ),
-    metadata_item("Type", legislation_type.to_string(record.legislation_type)),
-    metadata_item("Status", legislation_status.to_string(record.status)),
+    components.metadata_item(
+      "Type",
+      legislation_type.to_string(record.legislation_type),
+    ),
+    components.metadata_item(
+      "Status",
+      legislation_status.to_string(record.status),
+    ),
     case record.introduced_date {
       "" -> element.none()
-      date_value -> metadata_item("Introduced", date_value)
+      date_value -> components.metadata_item("Introduced", date_value)
     },
     case record.source_identifier {
       "" -> element.none()
-      identifier -> metadata_item("Identifier", identifier)
+      identifier -> components.metadata_item("Identifier", identifier)
     },
     sponsors_section(record.sponsors),
-    topics_section(record.topics),
+    components.topics_section(record.topics),
     source_link_section(record.source_url),
     actions_section(legislation_id, record.topics),
     related_section(related_legislation),
-  ])
-}
-
-fn metadata_item(label_text: String, value_text: String) -> Element(Nil) {
-  html.div([attribute.class("metadata-item")], [
-    html.span([attribute.class("metadata-label")], [html.text(label_text)]),
-    html.span([attribute.class("metadata-value")], [html.text(value_text)]),
   ])
 }
 
@@ -161,22 +167,6 @@ fn sponsors_section(sponsors: List(String)) -> Element(Nil) {
           [attribute.class("sponsors-list")],
           list.map(sponsor_list, fn(sponsor_name) {
             html.li([], [html.text(sponsor_name)])
-          }),
-        ),
-      ])
-  }
-}
-
-fn topics_section(topics: List(String)) -> Element(Nil) {
-  case topics {
-    [] -> element.none()
-    topic_list ->
-      html.div([attribute.class("metadata-item")], [
-        html.span([attribute.class("metadata-label")], [html.text("Topics")]),
-        html.div(
-          [attribute.class("topic-tags")],
-          list.map(topic_list, fn(topic) {
-            html.span([attribute.class("topic-tag")], [html.text(topic)])
           }),
         ),
       ])
@@ -266,10 +256,4 @@ fn related_section(related_legislation: List(Legislation)) -> Element(Nil) {
         ),
       ])
   }
-}
-
-fn badge(class_name: String, badge_text: String) -> Element(Nil) {
-  html.span([attribute.class("badge " <> class_name)], [
-    html.text(badge_text),
-  ])
 }

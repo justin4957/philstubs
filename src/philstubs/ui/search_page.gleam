@@ -11,6 +11,7 @@ import philstubs/core/legislation_status
 import philstubs/core/legislation_type
 import philstubs/search/search_query.{type SearchQuery}
 import philstubs/search/search_results.{type SearchResult, type SearchResults}
+import philstubs/ui/components
 import philstubs/ui/layout
 
 /// Render the full search page with form, filters, results, and pagination.
@@ -240,15 +241,18 @@ fn render_result(search_result: SearchResult) -> Element(Nil) {
       result_link(legislation),
     ]),
     html.div([attribute.class("result-meta")], [
-      badge(
+      components.badge(
         "level-badge",
         government_level.jurisdiction_label(legislation.level),
       ),
-      badge(
+      components.badge(
         "type-badge",
         legislation_type.to_string(legislation.legislation_type),
       ),
-      badge("status-badge", legislation_status.to_string(legislation.status)),
+      components.badge(
+        "status-badge",
+        legislation_status.to_string(legislation.status),
+      ),
       case legislation.introduced_date {
         "" -> element.none()
         date_value ->
@@ -275,12 +279,6 @@ fn result_link(legislation: Legislation) -> Element(Nil) {
       )
     None -> html.text(legislation.title)
   }
-}
-
-fn badge(class_name: String, badge_text: String) -> Element(Nil) {
-  html.span([attribute.class("badge " <> class_name)], [
-    html.text(badge_text),
-  ])
 }
 
 fn snippet_element(snippet_text: String) -> Element(Nil) {

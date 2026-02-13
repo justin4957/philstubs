@@ -204,6 +204,26 @@ pub fn search(
   )
 }
 
+/// Count all templates in the database.
+pub fn count_all(connection: sqlight.Connection) -> Result(Int, sqlight.Error) {
+  let count_decoder = {
+    use count <- decode.field(0, decode.int)
+    decode.success(count)
+  }
+
+  use rows <- result.try(sqlight.query(
+    "SELECT COUNT(*) FROM legislation_templates",
+    on: connection,
+    with: [],
+    expecting: count_decoder,
+  ))
+
+  case rows {
+    [count, ..] -> Ok(count)
+    [] -> Ok(0)
+  }
+}
+
 /// Increment the download count for a template.
 pub fn increment_download_count(
   connection: sqlight.Connection,
