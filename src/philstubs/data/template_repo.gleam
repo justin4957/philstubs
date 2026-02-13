@@ -24,8 +24,9 @@ pub fn insert(
       id, title, description, body,
       suggested_level, suggested_level_state_code,
       suggested_level_county_name, suggested_level_municipality_name,
-      suggested_type, author, topics, download_count, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      suggested_type, author, topics, download_count, created_at,
+      owner_user_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
   sqlight.query(
     sql,
@@ -44,6 +45,7 @@ pub fn insert(
       sqlight.text(list_to_json_text(template.topics)),
       sqlight.int(template.download_count),
       sqlight.text(template.created_at),
+      sqlight.nullable(sqlight.text, template.owner_user_id),
     ],
     expecting: decode.success(Nil),
   )
@@ -60,7 +62,8 @@ pub fn get_by_id(
     id, title, description, body,
     suggested_level, suggested_level_state_code,
     suggested_level_county_name, suggested_level_municipality_name,
-    suggested_type, author, topics, download_count, created_at
+    suggested_type, author, topics, download_count, created_at,
+    owner_user_id
     FROM legislation_templates WHERE id = ?"
 
   use rows <- result.try(sqlight.query(
@@ -85,7 +88,8 @@ pub fn list_all(
     id, title, description, body,
     suggested_level, suggested_level_state_code,
     suggested_level_county_name, suggested_level_municipality_name,
-    suggested_type, author, topics, download_count, created_at
+    suggested_type, author, topics, download_count, created_at,
+    owner_user_id
     FROM legislation_templates ORDER BY created_at DESC"
 
   sqlight.query(
@@ -111,6 +115,7 @@ pub fn update(
       suggested_level_county_name = ?, suggested_level_municipality_name = ?,
       suggested_type = ?, author = ?, topics = ?,
       download_count = ?, created_at = ?,
+      owner_user_id = ?,
       updated_at = datetime('now')
     WHERE id = ?"
 
@@ -130,6 +135,7 @@ pub fn update(
       sqlight.text(list_to_json_text(template.topics)),
       sqlight.int(template.download_count),
       sqlight.text(template.created_at),
+      sqlight.nullable(sqlight.text, template.owner_user_id),
       sqlight.text(legislation_template.template_id_to_string(template.id)),
     ],
     expecting: decode.success(Nil),
@@ -151,6 +157,28 @@ pub fn delete(
   |> result.replace(Nil)
 }
 
+/// List all templates owned by a specific user.
+pub fn list_by_owner(
+  connection: sqlight.Connection,
+  owner_id: String,
+) -> Result(List(LegislationTemplate), sqlight.Error) {
+  let sql =
+    "SELECT
+    id, title, description, body,
+    suggested_level, suggested_level_state_code,
+    suggested_level_county_name, suggested_level_municipality_name,
+    suggested_type, author, topics, download_count, created_at,
+    owner_user_id
+    FROM legislation_templates WHERE owner_user_id = ? ORDER BY created_at DESC"
+
+  sqlight.query(
+    sql,
+    on: connection,
+    with: [sqlight.text(owner_id)],
+    expecting: template_row_decoder(),
+  )
+}
+
 /// Full-text search across templates using FTS5.
 pub fn search(
   connection: sqlight.Connection,
@@ -161,7 +189,8 @@ pub fn search(
       t.id, t.title, t.description, t.body,
       t.suggested_level, t.suggested_level_state_code,
       t.suggested_level_county_name, t.suggested_level_municipality_name,
-      t.suggested_type, t.author, t.topics, t.download_count, t.created_at
+      t.suggested_type, t.author, t.topics, t.download_count, t.created_at,
+      t.owner_user_id
     FROM templates_fts fts
     JOIN legislation_templates t ON t.rowid = fts.rowid
     WHERE templates_fts MATCH ?
@@ -207,6 +236,7 @@ fn template_row_decoder() -> decode.Decoder(LegislationTemplate) {
   use topics_json <- decode.field(10, decode.string)
   use download_count <- decode.field(11, decode.int)
   use created_at <- decode.field(12, decode.string)
+  use owner_user_id <- decode.field(13, decode.optional(decode.string))
 
   let suggested_level =
     government_level_from_columns(
@@ -228,6 +258,7 @@ fn template_row_decoder() -> decode.Decoder(LegislationTemplate) {
     topics: json_text_to_list(topics_json),
     created_at:,
     download_count:,
+    owner_user_id:,
   ))
 }
 

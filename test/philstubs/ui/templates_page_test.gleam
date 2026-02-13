@@ -1,3 +1,4 @@
+import gleam/option.{None}
 import gleam/string
 import gleeunit/should
 import lustre/element
@@ -20,6 +21,7 @@ fn sample_housing_template() -> LegislationTemplate {
     topics: ["housing", "zoning"],
     created_at: "2024-06-01T12:00:00Z",
     download_count: 42,
+    owner_user_id: None,
   )
 }
 
@@ -35,6 +37,7 @@ fn sample_transparency_template() -> LegislationTemplate {
     topics: ["transparency"],
     created_at: "2024-04-15T09:30:00Z",
     download_count: 87,
+    owner_user_id: None,
   )
 }
 
@@ -50,6 +53,7 @@ fn sample_alphabetical_template() -> LegislationTemplate {
     topics: ["ethics"],
     created_at: "2024-08-01T10:00:00Z",
     download_count: 10,
+    owner_user_id: None,
   )
 }
 

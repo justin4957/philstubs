@@ -60,6 +60,7 @@ pub fn handle_legislation_stats(db_connection: sqlight.Connection) -> Response {
 pub fn handle_templates_create(
   request: Request,
   db_connection: sqlight.Connection,
+  owner_user_id: option.Option(String),
 ) -> Response {
   use json_body <- wisp.require_json(request)
 
@@ -80,6 +81,7 @@ pub fn handle_templates_create(
           topics: template_request.topics,
           created_at: "",
           download_count: 0,
+          owner_user_id:,
         )
 
       case template_repo.insert(db_connection, template) {

@@ -1,5 +1,6 @@
 import gleam/http
 import gleam/list
+import gleam/option.{None, Some}
 import gleam/string
 import gleeunit/should
 import philstubs/core/government_level.{Federal, Municipal}
@@ -10,13 +11,38 @@ import philstubs/core/legislation_type
 import philstubs/data/database
 import philstubs/data/template_repo
 import philstubs/data/test_helpers
+import philstubs/data/user_repo
 import philstubs/web/context.{Context}
 import philstubs/web/router
 import sqlight
 import wisp/simulate
 
 fn test_context(db_connection: sqlight.Connection) -> context.Context {
-  Context(static_directory: "", db_connection:)
+  Context(
+    static_directory: "",
+    db_connection:,
+    current_user: None,
+    github_client_id: "",
+    github_client_secret: "",
+  )
+}
+
+fn authenticated_context(db_connection: sqlight.Connection) -> context.Context {
+  let assert Ok(test_user) =
+    user_repo.upsert_from_github(
+      db_connection,
+      12_345,
+      "testuser",
+      "Test User",
+      "",
+    )
+  Context(
+    static_directory: "",
+    db_connection:,
+    current_user: Some(test_user),
+    github_client_id: "",
+    github_client_secret: "",
+  )
 }
 
 fn sample_housing_template() -> LegislationTemplate {
@@ -31,6 +57,7 @@ fn sample_housing_template() -> LegislationTemplate {
     topics: ["housing", "zoning", "affordable housing"],
     created_at: "2024-06-01T12:00:00Z",
     download_count: 42,
+    owner_user_id: None,
   )
 }
 
@@ -46,6 +73,7 @@ fn sample_transparency_template() -> LegislationTemplate {
     topics: ["transparency", "open data", "government accountability"],
     created_at: "2024-04-15T09:30:00Z",
     download_count: 87,
+    owner_user_id: None,
   )
 }
 
@@ -118,7 +146,7 @@ pub fn templates_list_sorted_by_downloads_test() {
 pub fn template_new_form_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
   let response =
     simulate.request(http.Get, "/templates/new")
@@ -137,7 +165,7 @@ pub fn template_new_form_test() {
 pub fn template_create_success_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
   let response =
     simulate.request(http.Post, "/templates")
@@ -167,7 +195,7 @@ pub fn template_create_success_test() {
 pub fn template_create_missing_title_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
   let response =
     simulate.request(http.Post, "/templates")
@@ -187,7 +215,7 @@ pub fn template_create_missing_title_test() {
 pub fn template_create_missing_body_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
   let response =
     simulate.request(http.Post, "/templates")
@@ -207,7 +235,7 @@ pub fn template_create_missing_body_test() {
 pub fn template_create_missing_author_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
   let response =
     simulate.request(http.Post, "/templates")
@@ -227,7 +255,7 @@ pub fn template_create_missing_author_test() {
 pub fn template_create_sanitizes_xss_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
   let _response =
     simulate.request(http.Post, "/templates")
@@ -393,8 +421,9 @@ pub fn template_download_not_found_test() {
 pub fn template_delete_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
+  // Insert template with no owner so authenticated user can delete it
   let assert Ok(Nil) =
     template_repo.insert(connection, sample_housing_template())
 
@@ -414,7 +443,7 @@ pub fn template_delete_test() {
 pub fn template_delete_not_found_test() {
   use connection <- database.with_named_connection(":memory:")
   let assert Ok(_) = test_helpers.setup_test_db(connection)
-  let context = test_context(connection)
+  let context = authenticated_context(connection)
 
   let response =
     simulate.request(http.Post, "/templates/nonexistent-id")
@@ -488,5 +517,3 @@ pub fn api_template_not_found_test() {
 
   response.status |> should.equal(404)
 }
-
-import gleam/option.{Some}

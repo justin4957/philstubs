@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS legislation_templates (
   topics TEXT NOT NULL DEFAULT '[]',
   download_count INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  owner_user_id TEXT
 );
 "
 
@@ -121,12 +122,33 @@ AFTER DELETE ON legislation_templates BEGIN
 END;
 "
 
+/// SQL for creating users and sessions tables (matches priv/migrations/005).
+pub const create_users_sessions_sql = "
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  github_id INTEGER NOT NULL UNIQUE,
+  username TEXT NOT NULL,
+  display_name TEXT NOT NULL DEFAULT '',
+  avatar_url TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  token TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"
+
 /// All migrations as version/SQL pairs for use with run_migrations_from_sql.
 pub fn all_migrations() -> List(#(String, String)) {
   [
     #("001", create_tables_sql),
     #("002", create_fts_sql),
     #("003", create_ingestion_state_sql),
+    #("005", create_users_sessions_sql),
   ]
 }
 

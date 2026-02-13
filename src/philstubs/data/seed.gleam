@@ -95,6 +95,7 @@ fn seed_templates(connection: sqlight.Connection) -> Result(Nil, sqlight.Error) 
       topics: ["housing", "zoning", "affordable housing", "inclusionary zoning"],
       created_at: "2024-06-01T12:00:00Z",
       download_count: 42,
+      owner_user_id: None,
     ),
     LegislationTemplate(
       id: legislation_template.template_id("tmpl-transparency-001"),
@@ -109,6 +110,7 @@ fn seed_templates(connection: sqlight.Connection) -> Result(Nil, sqlight.Error) 
       ],
       created_at: "2024-04-15T09:30:00Z",
       download_count: 87,
+      owner_user_id: None,
     ),
   ]
 

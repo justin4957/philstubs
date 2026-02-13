@@ -57,6 +57,7 @@ pub fn handle_template_new_form() -> Response {
 pub fn handle_template_create(
   request: Request,
   db_connection: sqlight.Connection,
+  owner_user_id: option.Option(String),
 ) -> Response {
   use form_data <- wisp.require_form(request)
 
@@ -108,6 +109,7 @@ pub fn handle_template_create(
           topics:,
           created_at: "",
           download_count: 0,
+          owner_user_id:,
         )
 
       case template_repo.insert(db_connection, template) {

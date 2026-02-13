@@ -22,6 +22,7 @@ fn sample_housing_template() -> LegislationTemplate {
     topics: ["housing", "zoning", "affordable housing"],
     created_at: "2024-06-01T12:00:00Z",
     download_count: 42,
+    owner_user_id: None,
   )
 }
 
@@ -37,6 +38,7 @@ fn sample_transparency_template() -> LegislationTemplate {
     topics: ["transparency", "open data", "government accountability"],
     created_at: "2024-04-15T09:30:00Z",
     download_count: 87,
+    owner_user_id: None,
   )
 }
 
@@ -185,6 +187,7 @@ pub fn insert_with_federal_suggested_level_test() {
       topics: ["oversight", "federal"],
       created_at: "2024-09-01T10:00:00Z",
       download_count: 0,
+      owner_user_id: None,
     )
 
   let assert Ok(Nil) = template_repo.insert(connection, federal_template)

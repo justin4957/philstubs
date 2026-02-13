@@ -12,6 +12,8 @@ pub type ErrorCode {
   MissingField
   InternalError
   MethodNotAllowed
+  Unauthorized
+  Forbidden
 }
 
 /// Convert an ErrorCode to its JSON string representation.
@@ -23,6 +25,8 @@ pub fn error_code_to_string(error_code: ErrorCode) -> String {
     MissingField -> "MISSING_FIELD"
     InternalError -> "INTERNAL_ERROR"
     MethodNotAllowed -> "METHOD_NOT_ALLOWED"
+    Unauthorized -> "UNAUTHORIZED"
+    Forbidden -> "FORBIDDEN"
   }
 }
 
@@ -58,6 +62,20 @@ pub fn invalid_json() -> Response {
 /// 500 error response for internal server errors.
 pub fn internal_error() -> Response {
   error_response("Internal server error", InternalError, 500)
+}
+
+/// 401 error response for unauthenticated requests.
+pub fn unauthorized() -> Response {
+  error_response("Authentication required", Unauthorized, 401)
+}
+
+/// 403 error response for unauthorized access.
+pub fn forbidden() -> Response {
+  error_response(
+    "You do not have permission to perform this action",
+    Forbidden,
+    403,
+  )
 }
 
 /// 405 error response listing allowed methods.
