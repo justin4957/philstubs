@@ -2,6 +2,7 @@ import gleam/erlang/process
 import gleam/int
 import gleam/io
 import mist
+import philstubs/data/database
 import philstubs/web/context.{Context}
 import philstubs/web/router
 import wisp
@@ -15,7 +16,11 @@ pub fn main() {
   let secret_key_base = wisp.random_string(64)
   let static_directory = static_directory()
 
-  let application_context = Context(static_directory: static_directory)
+  use connection <- database.with_connection()
+  let assert Ok(_) = database.initialize(connection)
+
+  let application_context =
+    Context(static_directory: static_directory, db_connection: connection)
 
   let request_handler = router.handle_request(_, application_context)
 
