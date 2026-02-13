@@ -1,11 +1,11 @@
 import gleam/int
-import gleam/list
 import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html
 import philstubs/core/government_level
 import philstubs/core/legislation_template.{type LegislationTemplate}
 import philstubs/core/legislation_type
+import philstubs/ui/components
 import philstubs/ui/layout
 
 /// Render the template detail page showing full template content,
@@ -44,17 +44,20 @@ fn metadata_sidebar(
 ) -> Element(Nil) {
   html.aside([attribute.class("template-sidebar")], [
     html.h3([], [html.text("Details")]),
-    metadata_item(
+    components.metadata_item(
       "Suggested Level",
       government_level.jurisdiction_label(template.suggested_level),
     ),
-    metadata_item(
+    components.metadata_item(
       "Legislation Type",
       legislation_type.to_string(template.suggested_type),
     ),
-    metadata_item("Downloads", int.to_string(template.download_count)),
-    metadata_item("Created", template.created_at),
-    topics_section(template.topics),
+    components.metadata_item(
+      "Downloads",
+      int.to_string(template.download_count),
+    ),
+    components.metadata_item("Created", template.created_at),
+    components.topics_section(template.topics),
     html.div([attribute.class("template-actions")], [
       html.a(
         [
@@ -76,27 +79,4 @@ fn metadata_sidebar(
       ),
     ]),
   ])
-}
-
-fn metadata_item(label_text: String, value_text: String) -> Element(Nil) {
-  html.div([attribute.class("metadata-item")], [
-    html.span([attribute.class("metadata-label")], [html.text(label_text)]),
-    html.span([attribute.class("metadata-value")], [html.text(value_text)]),
-  ])
-}
-
-fn topics_section(topics: List(String)) -> Element(Nil) {
-  case topics {
-    [] -> element.none()
-    topic_list ->
-      html.div([attribute.class("metadata-item")], [
-        html.span([attribute.class("metadata-label")], [html.text("Topics")]),
-        html.div(
-          [attribute.class("topic-tags")],
-          list.map(topic_list, fn(topic) {
-            html.span([attribute.class("topic-tag")], [html.text(topic)])
-          }),
-        ),
-      ])
-  }
 }
