@@ -6,6 +6,7 @@ import philstubs/search/search_repo
 import philstubs/search/search_results
 import philstubs/ui/pages
 import philstubs/ui/search_page
+import philstubs/web/browse_handler
 import philstubs/web/context.{type Context}
 import philstubs/web/legislation_handler
 import philstubs/web/middleware
@@ -24,6 +25,12 @@ pub fn handle_request(
   case wisp.path_segments(request) {
     [] -> index_page(request)
     ["health"] -> health_check(request)
+    ["browse"] -> handle_browse_root(request, db_connection)
+    ["browse", "federal"] -> handle_browse_federal(request)
+    ["browse", "states"] -> handle_browse_states(request, db_connection)
+    ["browse", "state", state_code] ->
+      handle_browse_state(request, state_code, db_connection)
+    ["browse", "topics"] -> handle_browse_topics(request, db_connection)
     ["search"] -> handle_search_page(request, application_context)
     ["legislation", legislation_id, "download"] ->
       handle_legislation_download(request, legislation_id, db_connection)
@@ -99,6 +106,46 @@ fn handle_search_api(request: Request, application_context: Context) -> Response
       |> json.to_string
       |> wisp.json_response(500)
   }
+}
+
+// --- Browse routes ---
+
+fn handle_browse_root(
+  request: Request,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  browse_handler.handle_browse_root(db_connection)
+}
+
+fn handle_browse_federal(request: Request) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  wisp.redirect("/search?level=federal")
+}
+
+fn handle_browse_states(
+  request: Request,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  browse_handler.handle_browse_states(db_connection)
+}
+
+fn handle_browse_state(
+  request: Request,
+  state_code: String,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  browse_handler.handle_browse_state(state_code, db_connection)
+}
+
+fn handle_browse_topics(
+  request: Request,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  browse_handler.handle_browse_topics(db_connection)
 }
 
 // --- Legislation routes ---

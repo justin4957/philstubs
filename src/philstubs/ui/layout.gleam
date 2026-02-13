@@ -37,6 +37,7 @@ pub fn page_layout_with_meta(
       html.header([], [
         html.nav([], [
           html.a([attribute.href("/")], [html.text("PHILSTUBS")]),
+          html.a([attribute.href("/browse")], [html.text("Browse")]),
           html.a([attribute.href("/search")], [html.text("Search")]),
           html.a([attribute.href("/templates")], [html.text("Templates")]),
         ]),

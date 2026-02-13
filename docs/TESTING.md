@@ -97,6 +97,31 @@ Tests live in `test/` and follow the gleeunit convention:
 - `search_text_with_filter_test` — Text search combined with faceted filter
 - `search_snippet_contains_text_test` — FTS5 snippet() produces `<mark>` highlighted excerpts
 
+### Browse Repository Tests (`test/philstubs/data/browse_repo_test.gleam`)
+
+**Government Level Counts** (2 tests):
+- `count_by_government_level_test` — Counts legislation grouped by level (federal, state, county, municipal)
+- `count_by_government_level_empty_db_test` — Returns empty list on empty database
+
+**State Counts** (2 tests):
+- `count_by_state_test` — Counts all legislation per state (includes state, county, municipal levels)
+- `count_by_state_alphabetical_order_test` — State codes returned in alphabetical order
+
+**County/Municipality Counts** (4 tests):
+- `count_counties_in_state_test` — Counts county-level legislation within a state
+- `count_counties_in_state_empty_test` — Returns empty list for state with no counties
+- `count_municipalities_in_state_test` — Counts municipal-level legislation within a state
+- `count_municipalities_in_state_different_state_test` — Counts municipalities for different states independently
+
+**State Legislation Count** (2 tests):
+- `count_state_legislation_test` — Counts state-level-only legislation for a specific state
+- `count_state_legislation_empty_test` — Returns 0 for state with no state-level legislation
+
+**Topic Counts** (3 tests):
+- `count_topics_test` — Extracts topics from JSON arrays and counts across all legislation
+- `count_topics_ordered_by_count_descending_test` — Topics ordered by count descending
+- `count_topics_empty_db_test` — Returns empty list on empty database
+
 ### Template Repository Tests (`test/philstubs/data/template_repo_test.gleam`)
 
 **CRUD Operations** (6 tests):
@@ -112,6 +137,40 @@ Tests live in `test/` and follow the gleeunit convention:
 
 **Download Count** (1 test):
 - `increment_download_count_test` — Verify count increments from 42 to 43
+
+### Browse Handler Tests (`test/philstubs/web/browse_handler_test.gleam`)
+
+**Browse Root** (4 tests):
+- `browse_root_renders_test` — GET /browse renders page with all government level names
+- `browse_root_shows_counts_test` — Root page displays legislation counts per level
+- `browse_root_shows_topic_link_test` — Root page includes link to /browse/topics
+- `browse_root_empty_db_test` — Empty database shows 0 counts
+
+**Federal Redirect** (1 test):
+- `browse_federal_redirects_to_search_test` — GET /browse/federal returns 303 redirect to /search?level=federal
+
+**States Browser** (4 tests):
+- `browse_states_renders_test` — GET /browse/states renders page with state codes and counts
+- `browse_states_shows_breadcrumbs_test` — States page includes breadcrumb navigation
+- `browse_states_empty_test` — Empty database shows "No state legislation available" message
+- `browse_states_links_to_state_detail_test` — State items link to /browse/state/:code
+
+**State Detail** (6 tests):
+- `browse_state_detail_renders_test` — GET /browse/state/CA renders page with state title
+- `browse_state_detail_shows_breadcrumbs_test` — State detail shows Browse > States > CA breadcrumbs
+- `browse_state_detail_shows_counties_test` — State detail displays county names with counts
+- `browse_state_detail_shows_municipalities_test` — State detail displays municipality names with counts
+- `browse_state_detail_links_to_search_test` — State legislature link points to search with filters
+- `browse_state_detail_empty_counties_test` — Empty state shows "No county/municipal legislation" messages
+
+**Topics Browser** (4 tests):
+- `browse_topics_renders_test` — GET /browse/topics renders page with topic names
+- `browse_topics_links_to_search_test` — Topic items link to /search?q=TOPIC
+- `browse_topics_shows_breadcrumbs_test` — Topics page includes breadcrumb navigation
+- `browse_topics_empty_test` — Empty database shows "No topics available" message
+
+**Navigation** (1 test):
+- `browse_link_in_navigation_test` — Browse link appears in site navigation
 
 ### Legislation Handler Tests (`test/philstubs/web/legislation_handler_test.gleam`)
 
@@ -471,6 +530,13 @@ curl "http://localhost:8000/legislation/LEGISLATION_ID/download?format=markdown"
 
 # Legislation API:
 curl http://localhost:8000/api/legislation/LEGISLATION_ID                     # Expect: JSON object
+
+# Browse hierarchy:
+curl http://localhost:8000/browse                    # Expect: HTML with government level cards
+curl http://localhost:8000/browse/states              # Expect: HTML with state list and counts
+curl http://localhost:8000/browse/state/CA             # Expect: HTML with CA counties/municipalities
+curl -v http://localhost:8000/browse/federal           # Expect: 303 redirect to /search?level=federal
+curl http://localhost:8000/browse/topics               # Expect: HTML with topic list and counts
 ```
 
 ## Adding New Tests
