@@ -113,6 +113,60 @@ Tests live in `test/` and follow the gleeunit convention:
 **Download Count** (1 test):
 - `increment_download_count_test` — Verify count increments from 42 to 43
 
+### Template Handler Tests (`test/philstubs/web/template_handler_test.gleam`)
+
+**Template Listing** (3 tests):
+- `templates_list_empty_test` — Empty listing shows "No templates yet" message
+- `templates_list_with_items_test` — Listing renders all template titles
+- `templates_list_sorted_by_downloads_test` — Sort=downloads orders by download count
+
+**Template Upload Form** (1 test):
+- `template_new_form_test` — GET /templates/new renders upload form with fields
+
+**Template Creation** (5 tests):
+- `template_create_success_test` — POST /templates creates template and redirects
+- `template_create_missing_title_test` — Returns 400 with "Title is required" error
+- `template_create_missing_body_test` — Returns 400 with "Template body is required" error
+- `template_create_missing_author_test` — Returns 400 with "Author is required" error
+- `template_create_sanitizes_xss_test` — Verifies XSS script tags are sanitized in stored data
+
+**Template Detail** (2 tests):
+- `template_detail_test` — GET /templates/:id renders full template with metadata and download buttons
+- `template_detail_not_found_test` — Returns 404 for nonexistent template
+
+**Template Download** (4 tests):
+- `template_download_plain_text_test` — Downloads as text/plain with content-disposition header
+- `template_download_markdown_test` — Downloads as text/markdown with proper formatting
+- `template_download_increments_count_test` — Download increments counter from 42 to 43
+- `template_download_not_found_test` — Returns 404 for nonexistent template
+
+**Template Deletion** (2 tests):
+- `template_delete_test` — POST /templates/:id deletes template and redirects to listing
+- `template_delete_not_found_test` — Returns 404 for nonexistent template
+
+**JSON API** (3 tests):
+- `api_templates_list_test` — GET /api/templates returns JSON array with content-type header
+- `api_template_detail_test` — GET /api/templates/:id returns JSON object
+- `api_template_not_found_test` — Returns 404 for nonexistent template
+
+### Templates Page UI Tests (`test/philstubs/ui/templates_page_test.gleam`)
+
+**Sort Logic** (3 tests):
+- `sort_templates_newest_first_test` — Sorts by created_at descending
+- `sort_templates_most_downloaded_test` — Sorts by download_count descending
+- `sort_templates_alphabetical_test` — Sorts by title ascending
+
+**Sort Order Parsing** (4 tests):
+- `sort_order_from_string_newest_test` — Parses "newest" to Newest
+- `sort_order_from_string_downloads_test` — Parses "downloads" to MostDownloaded
+- `sort_order_from_string_title_test` — Parses "title" to Alphabetical
+- `sort_order_from_string_unknown_defaults_newest_test` — Unknown value defaults to Newest
+
+**Rendering** (3 tests):
+- `templates_page_renders_empty_state_test` — Empty list shows "No templates yet" message
+- `templates_page_renders_template_cards_test` — Renders template titles, authors, download counts
+- `templates_page_renders_sort_links_test` — Renders sort control links
+
 ### Congress.gov Ingestion Tests
 
 #### Congress Types (`test/philstubs/ingestion/congress_types_test.gleam`)
@@ -356,6 +410,24 @@ curl "http://localhost:8000/search?q=test"     # Expect: Search results page
 curl "http://localhost:8000/api/search?q=test"                       # Expect: JSON
 curl "http://localhost:8000/api/search?level=federal&type=bill"      # Expect: Filtered JSON
 curl "http://localhost:8000/api/search?q=test&page=2&per_page=10"   # Expect: Paginated JSON
+
+# Templates:
+curl http://localhost:8000/templates                 # Expect: HTML template listing
+curl http://localhost:8000/templates/new              # Expect: HTML upload form
+curl "http://localhost:8000/templates?sort=downloads"  # Expect: Sorted by downloads
+
+# Template API:
+curl http://localhost:8000/api/templates              # Expect: JSON array of templates
+curl http://localhost:8000/api/templates/TEMPLATE_ID   # Expect: JSON template object
+
+# Template upload (POST):
+curl -X POST http://localhost:8000/templates \
+  -d "title=Test+Template&description=A+test&body=SECTION+1.+Test&author=Test+Author&suggested_level=federal&suggested_type=bill&topics=test"
+# Expect: 303 redirect to /templates/TEMPLATE_ID
+
+# Template download:
+curl "http://localhost:8000/templates/TEMPLATE_ID/download?format=text"       # Expect: Plain text
+curl "http://localhost:8000/templates/TEMPLATE_ID/download?format=markdown"   # Expect: Markdown
 ```
 
 ## Adding New Tests

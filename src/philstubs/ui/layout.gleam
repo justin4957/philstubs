@@ -26,6 +26,7 @@ pub fn page_layout(
         html.nav([], [
           html.a([attribute.href("/")], [html.text("PHILSTUBS")]),
           html.a([attribute.href("/search")], [html.text("Search")]),
+          html.a([attribute.href("/templates")], [html.text("Templates")]),
         ]),
       ]),
       html.main([], page_content),
