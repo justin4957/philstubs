@@ -66,6 +66,37 @@ Tests live in `test/` and follow the gleeunit convention:
 **Full-Text Search** (1 test):
 - `search_test` — Insert records with distinct terms, FTS5 search returns correct matches
 
+### Search Query Tests (`test/philstubs/search/search_query_test.gleam`)
+
+**Query Builder** (10 tests):
+- `default_query_test` — Verify default values (None text, page 1, per_page 20, Relevance sort)
+- `from_query_params_with_text_test` — Parse `q=healthcare` into text field
+- `from_query_params_with_filters_test` — Parse level, type, status, state_code filters
+- `from_query_params_with_pagination_test` — Parse page and per_page values
+- `from_query_params_clamps_values_test` — Page minimum 1, per_page max 100, invalid falls back to default
+- `to_query_params_roundtrip_test` — Serialize and parse back preserves values
+- `has_filters_test` — True when any filter set, false for default and text-only queries
+- `from_query_params_with_sort_test` — Parse sort=date, sort=title, unknown defaults to Relevance
+- `offset_calculation_test` — Verify (page-1) * per_page offset calculation
+- `from_query_params_empty_values_ignored_test` — Empty strings treated as None
+- `to_query_params_omits_defaults_test` — Default query produces empty params list
+
+### Search Repository Tests (`test/philstubs/search/search_repo_test.gleam`)
+
+**FTS5 Search + Faceted Filtering** (12 tests):
+- `search_by_text_test` — FTS5 text search returns matching results
+- `search_by_text_with_ranking_test` — Better matches ranked correctly
+- `search_with_level_filter_test` — Filter by government_level returns only matching level
+- `search_with_type_filter_test` — Filter by legislation_type returns only matching type
+- `search_with_status_filter_test` — Filter by status returns only matching status
+- `search_with_date_range_test` — Filter by introduced_date range (date_from/date_to)
+- `search_with_combined_filters_test` — Multiple filters applied simultaneously
+- `search_pagination_test` — Verify LIMIT/OFFSET, total_count, and total_pages
+- `search_no_text_browse_test` — Filter-only search without text query returns all records
+- `search_empty_results_test` — No matches returns empty results with count 0
+- `search_text_with_filter_test` — Text search combined with faceted filter
+- `search_snippet_contains_text_test` — FTS5 snippet() produces `<mark>` highlighted excerpts
+
 ### Template Repository Tests (`test/philstubs/data/template_repo_test.gleam`)
 
 **CRUD Operations** (6 tests):
@@ -316,6 +347,15 @@ gleam run
 curl -v http://localhost:8000/health    # Expect: 200 OK
 curl http://localhost:8000/             # Expect: HTML with "PHILSTUBS"
 curl http://localhost:8000/nonexistent  # Expect: 404
+
+# Search page:
+curl http://localhost:8000/search              # Expect: HTML search page
+curl "http://localhost:8000/search?q=test"     # Expect: Search results page
+
+# Search API:
+curl "http://localhost:8000/api/search?q=test"                       # Expect: JSON
+curl "http://localhost:8000/api/search?level=federal&type=bill"      # Expect: Filtered JSON
+curl "http://localhost:8000/api/search?q=test&page=2&per_page=10"   # Expect: Paginated JSON
 ```
 
 ## Adding New Tests
