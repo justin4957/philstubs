@@ -7,6 +7,7 @@ import philstubs/search/search_results
 import philstubs/ui/pages
 import philstubs/ui/search_page
 import philstubs/web/context.{type Context}
+import philstubs/web/legislation_handler
 import philstubs/web/middleware
 import philstubs/web/template_handler
 import wisp.{type Request, type Response}
@@ -24,6 +25,10 @@ pub fn handle_request(
     [] -> index_page(request)
     ["health"] -> health_check(request)
     ["search"] -> handle_search_page(request, application_context)
+    ["legislation", legislation_id, "download"] ->
+      handle_legislation_download(request, legislation_id, db_connection)
+    ["legislation", legislation_id] ->
+      handle_legislation_by_id(request, legislation_id, db_connection)
     ["templates"] -> handle_templates(request, db_connection)
     ["templates", "new"] -> handle_template_new(request)
     ["templates", template_id, "download"] ->
@@ -31,6 +36,8 @@ pub fn handle_request(
     ["templates", template_id] ->
       handle_template_by_id(request, template_id, db_connection)
     ["api", "search"] -> handle_search_api(request, application_context)
+    ["api", "legislation", legislation_id] ->
+      handle_legislation_api(request, legislation_id, db_connection)
     ["api", "templates"] -> handle_templates_api(request, db_connection)
     ["api", "templates", template_id] ->
       handle_template_api_by_id(request, template_id, db_connection)
@@ -92,6 +99,42 @@ fn handle_search_api(request: Request, application_context: Context) -> Response
       |> json.to_string
       |> wisp.json_response(500)
   }
+}
+
+// --- Legislation routes ---
+
+fn handle_legislation_by_id(
+  request: Request,
+  legislation_id: String,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  legislation_handler.handle_legislation_detail(legislation_id, db_connection)
+}
+
+fn handle_legislation_download(
+  request: Request,
+  legislation_id: String,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  legislation_handler.handle_legislation_download(
+    request,
+    legislation_id,
+    db_connection,
+  )
+}
+
+fn handle_legislation_api(
+  request: Request,
+  legislation_id: String,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  legislation_handler.handle_legislation_api_detail(
+    legislation_id,
+    db_connection,
+  )
 }
 
 // --- Template routes ---
