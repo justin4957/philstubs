@@ -97,9 +97,20 @@ fn run_local(connection: sqlight.Connection) -> Result(RunResult, RunError) {
   Ok(RunResult(records_fetched: total_fetched, records_stored: total_stored))
 }
 
-/// Default state jurisdictions for ingestion.
+/// Default state jurisdictions for ingestion (all 50 states + DC).
+/// Open States uses title-case full state names as jurisdiction identifiers.
 fn default_state_jurisdictions() -> List(String) {
-  ["California", "New York", "Texas", "Washington", "Illinois"]
+  [
+    "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
+    "Connecticut", "Delaware", "District of Columbia", "Florida", "Georgia",
+    "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky",
+    "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota",
+    "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire",
+    "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota",
+    "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island",
+    "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont",
+    "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming",
+  ]
 }
 
 fn congress_error_to_string(error: congress_ingestion.IngestionError) -> String {
