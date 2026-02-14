@@ -867,6 +867,25 @@ Tests live in `test/` and follow the gleeunit convention:
 - `explore_cluster_found_test` — GET /api/explore/cluster/:slug returns 200 with topic_slug, topic_name, nodes, edges
 - `explore_cluster_404_test` — Nonexistent topic slug returns 404 with NOT_FOUND code
 
+### Explore Page Tests (`test/philstubs/web/explore_page_test.gleam`)
+
+**Page Rendering** (15 tests):
+- `explore_page_renders_200_test` — GET /explore returns 200
+- `explore_page_contains_d3_script_test` — D3.js v7 CDN script tag present in head
+- `explore_page_contains_explore_js_test` — Local /static/js/explore.js script tag present
+- `explore_page_contains_graph_container_test` — SVG container div with id="explore-graph"
+- `explore_page_contains_edge_filters_test` — All 6 edge type filter checkboxes present (references, amends, supersedes, implements, delegates, similar_to)
+- `explore_page_contains_search_input_test` — Search input and button present
+- `explore_page_contains_path_finder_test` — Path from/to inputs and Find Path button present
+- `explore_page_contains_cluster_loader_test` — Cluster topic input and Load Cluster button present
+- `explore_page_contains_detail_panel_test` — Detail panel div present
+- `explore_page_with_initial_id_test` — GET /explore?id=leg-001 passes ID to initialization script
+- `explore_page_contains_zoom_controls_test` — Zoom in/out/reset buttons present
+- `explore_page_init_without_id_test` — Default page contains PhilstubsExplorer.init({}) call
+- `explore_page_contains_depth_selector_test` — Depth select dropdown present
+- `explore_page_contains_legend_test` — Color legend with Federal, State, County, Municipal labels
+- `explore_page_navigation_link_test` — Explore link present in navigation bar
+
 ### Topic Handler Tests (`test/philstubs/web/topic_handler_test.gleam`)
 
 **Taxonomy API** (2 tests):
@@ -1233,7 +1252,7 @@ pub fn my_dialogue_test() {
 
 Gleam currently has no native code coverage tooling. The Erlang `cover` module exists on the BEAM but reports line numbers against generated `.erl` files, which do not map back to Gleam source lines, making the output impractical to use.
 
-**Current approach**: Comprehensive testing (693+ tests) with CI enforcement via `gleam test` in the GitHub Actions workflow. Test coverage spans pure domain logic, database operations, HTTP handlers, ingestion pipelines, cross-reference extraction, impact analysis, navigation graph exploration, and interaction flow documentation (dialogue tests).
+**Current approach**: Comprehensive testing (708+ tests) with CI enforcement via `gleam test` in the GitHub Actions workflow. Test coverage spans pure domain logic, database operations, HTTP handlers, ingestion pipelines, cross-reference extraction, impact analysis, navigation graph exploration, interactive explorer UI, and interaction flow documentation (dialogue tests).
 
 **Future**: The Gleam ecosystem may develop coverage tooling as the language matures. Monitor the [Gleam GitHub discussions](https://github.com/gleam-lang/gleam/discussions) and community tools for coverage support.
 
@@ -1473,6 +1492,13 @@ curl "http://localhost:8000/api/legislation/LEGISLATION_ID/impact?direction=outg
 
 curl "http://localhost:8000/api/legislation/LEGISLATION_ID/impact?direction=incoming"
 # Expect: JSON with legislation that references the target
+
+# Interactive Explorer UI:
+curl http://localhost:8000/explore
+# Expect: HTML page with D3.js graph visualization, controls sidebar, and detail panel
+
+curl "http://localhost:8000/explore?id=LEGISLATION_ID"
+# Expect: HTML page that auto-loads the specified legislation node on initialization
 
 # Navigation Graph Explore API:
 curl http://localhost:8000/api/explore/node/LEGISLATION_ID
