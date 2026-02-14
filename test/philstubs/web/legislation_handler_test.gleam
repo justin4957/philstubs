@@ -22,6 +22,7 @@ fn test_context(db_connection: sqlight.Connection) -> context.Context {
     current_user: None,
     github_client_id: "",
     github_client_secret: "",
+    scheduler: None,
   )
 }
 

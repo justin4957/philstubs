@@ -27,6 +27,7 @@ fn test_context(db_connection: sqlight.Connection) -> context.Context {
     current_user: None,
     github_client_id: "",
     github_client_secret: "",
+    scheduler: None,
   )
 }
 
@@ -45,6 +46,7 @@ fn authenticated_context(db_connection: sqlight.Connection) -> context.Context {
     current_user: Some(test_user),
     github_client_id: "",
     github_client_secret: "",
+    scheduler: None,
   )
 }
 

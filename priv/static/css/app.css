@@ -1582,6 +1582,135 @@ footer {
 }
 
 /* ================================================================
+   TOPIC TAXONOMY
+   ================================================================ */
+
+.topic-tree {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0;
+}
+
+.topic-parent-card {
+  display: block;
+  padding: var(--spacing-lg);
+  border: none;
+  border-right: 1px solid var(--color-rule);
+  border-top: 2px solid var(--color-black);
+  border-radius: 0;
+  background: transparent;
+  text-decoration: none;
+  color: inherit;
+  transition: none;
+}
+
+.topic-parent-card:last-child {
+  border-right: none;
+}
+
+.topic-parent-card:hover h3 {
+  color: var(--color-accent);
+}
+
+.topic-parent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--spacing-sm);
+}
+
+.topic-parent-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-black);
+  transition: color 0.15s ease;
+}
+
+.topic-parent-description {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--spacing-sm) 0;
+  line-height: 1.4;
+}
+
+.topic-children {
+  list-style: none;
+  padding: 0;
+  margin: var(--spacing-sm) 0 0 0;
+  border-top: 1px solid var(--color-bg-subtle);
+  padding-top: var(--spacing-sm);
+}
+
+.topic-children li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+  margin: 0;
+}
+
+.topic-child-name {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.topic-child-count {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* Cross-level comparison */
+
+.topic-cross-level {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  margin-bottom: var(--spacing-xl);
+}
+
+.topic-level-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-lg) 0;
+  border-right: 1px solid var(--color-rule);
+}
+
+.topic-level-stat:last-child {
+  border-right: none;
+}
+
+.topic-state-breakdown {
+  max-width: 400px;
+}
+
+@media (max-width: 768px) {
+  .topic-tree {
+    grid-template-columns: 1fr;
+  }
+
+  .topic-parent-card {
+    border-right: none;
+    border-bottom: 1px solid var(--color-rule);
+  }
+
+  .topic-cross-level {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .topic-level-stat {
+    border-bottom: 1px solid var(--color-rule);
+  }
+}
+
+@media (max-width: 480px) {
+  .topic-cross-level {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ================================================================
    TEMPLATE FORM PAGE
    ================================================================ */
 
@@ -1677,6 +1806,202 @@ footer {
 
 .cancel-link:hover {
   color: var(--color-accent);
+}
+
+/* ================================================================
+   INGESTION DASHBOARD
+   ================================================================ */
+
+.ingestion-dashboard {
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.dashboard-alert {
+  padding: var(--spacing-md);
+  border-left: 2px solid var(--color-accent);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-lg);
+}
+
+.dashboard-section {
+  margin-top: var(--spacing-xl);
+}
+
+.dashboard-section h2 {
+  margin-top: 0;
+}
+
+/* Source Status Cards */
+
+.source-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-lg);
+}
+
+.source-card {
+  border-top: 2px solid var(--color-black);
+  padding: var(--spacing-lg) 0;
+}
+
+.source-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.source-card-header h3 {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 1rem;
+}
+
+.source-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid;
+  border-radius: 0;
+}
+
+.status-completed {
+  border-color: var(--color-enacted);
+  color: var(--color-enacted);
+}
+
+.status-failed {
+  border-color: var(--color-vetoed);
+  color: var(--color-vetoed);
+}
+
+.status-running {
+  border-color: var(--color-level);
+  color: var(--color-level);
+}
+
+.status-pending {
+  border-color: var(--color-text-muted);
+  color: var(--color-text-muted);
+}
+
+.status-none {
+  border-color: var(--color-rule);
+  color: var(--color-text-muted);
+}
+
+.source-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.source-card-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.source-card-stat .stat-label {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.source-card-stat .stat-value {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.source-card-actions {
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-bg-subtle);
+}
+
+/* Schedule Configuration */
+
+.schedule-config {
+  display: flex;
+  gap: var(--spacing-xl);
+}
+
+.config-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.config-label {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.config-value {
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+/* Jobs Table */
+
+.jobs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.jobs-table th {
+  text-align: left;
+  padding: var(--spacing-sm) var(--spacing-sm);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  border-bottom: 2px solid var(--color-black);
+}
+
+.jobs-table td {
+  padding: var(--spacing-sm) var(--spacing-sm);
+  border-bottom: 1px solid var(--color-bg-subtle);
+  vertical-align: top;
+}
+
+.jobs-table tr:last-child td {
+  border-bottom: none;
+}
+
+.error-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 768px) {
+  .source-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-config {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .jobs-table {
+    font-size: 0.75rem;
+  }
 }
 
 /* ================================================================

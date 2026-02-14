@@ -142,6 +142,66 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 "
 
+/// SQL for creating ingestion jobs table (matches priv/migrations/007_create_ingestion_jobs.sql).
+pub const create_ingestion_jobs_sql = "
+CREATE TABLE IF NOT EXISTS ingestion_jobs (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  started_at TEXT,
+  completed_at TEXT,
+  duration_seconds INTEGER NOT NULL DEFAULT 0,
+  records_fetched INTEGER NOT NULL DEFAULT 0,
+  records_stored INTEGER NOT NULL DEFAULT 0,
+  error_message TEXT,
+  retry_count INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_ingestion_jobs_source ON ingestion_jobs(source);
+CREATE INDEX IF NOT EXISTS idx_ingestion_jobs_created_at ON ingestion_jobs(created_at DESC);
+"
+
+/// SQL for creating topic taxonomy tables (matches priv/migrations/008_create_topic_taxonomy.sql).
+pub const create_topic_taxonomy_sql = "
+CREATE TABLE IF NOT EXISTS topics (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  description TEXT NOT NULL DEFAULT '',
+  parent_id TEXT REFERENCES topics(id),
+  display_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS legislation_topics (
+  legislation_id TEXT NOT NULL REFERENCES legislation(id) ON DELETE CASCADE,
+  topic_id TEXT NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+  assignment_method TEXT NOT NULL DEFAULT 'manual',
+  PRIMARY KEY (legislation_id, topic_id)
+);
+
+CREATE TABLE IF NOT EXISTS template_topics (
+  template_id TEXT NOT NULL REFERENCES legislation_templates(id) ON DELETE CASCADE,
+  topic_id TEXT NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+  assignment_method TEXT NOT NULL DEFAULT 'manual',
+  PRIMARY KEY (template_id, topic_id)
+);
+
+CREATE TABLE IF NOT EXISTS topic_keywords (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  topic_id TEXT NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+  keyword TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_topics_parent ON topics(parent_id);
+CREATE INDEX IF NOT EXISTS idx_topics_slug ON topics(slug);
+CREATE INDEX IF NOT EXISTS idx_legislation_topics_topic ON legislation_topics(topic_id);
+CREATE INDEX IF NOT EXISTS idx_legislation_topics_legislation ON legislation_topics(legislation_id);
+CREATE INDEX IF NOT EXISTS idx_template_topics_topic ON template_topics(topic_id);
+CREATE INDEX IF NOT EXISTS idx_template_topics_template ON template_topics(template_id);
+CREATE INDEX IF NOT EXISTS idx_topic_keywords_topic ON topic_keywords(topic_id);
+"
+
 /// SQL for creating similarity tables (matches priv/migrations/006_create_similarity_tables.sql).
 pub const create_similarity_tables_sql = "
 CREATE TABLE IF NOT EXISTS legislation_similarities (
@@ -197,6 +257,8 @@ pub fn all_migrations() -> List(#(String, String)) {
     #("003", create_ingestion_state_sql),
     #("005", create_users_sessions_sql),
     #("006", create_similarity_tables_sql),
+    #("007", create_ingestion_jobs_sql),
+    #("008", create_topic_taxonomy_sql),
   ]
 }
 

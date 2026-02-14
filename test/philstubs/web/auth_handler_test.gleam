@@ -21,6 +21,7 @@ fn test_context(db_connection) -> context.Context {
     current_user: None,
     github_client_id: "",
     github_client_secret: "",
+    scheduler: None,
   )
 }
 
@@ -31,6 +32,7 @@ fn configured_context(db_connection) -> context.Context {
     current_user: None,
     github_client_id: "test-client-id",
     github_client_secret: "test-client-secret",
+    scheduler: None,
   )
 }
 
@@ -49,6 +51,7 @@ fn authenticated_context(db_connection) -> context.Context {
     current_user: Some(test_user),
     github_client_id: "test-client-id",
     github_client_secret: "test-client-secret",
+    scheduler: None,
   )
 }
 

@@ -85,7 +85,7 @@ Tests live in `test/` and follow the gleeunit convention:
 ### Migration Tests (`test/philstubs/data/migration_test.gleam`)
 
 **Migration Runner** (2 tests):
-- `run_migrations_fresh_database_test` — Runs all 5 migrations on empty `:memory:` DB, verifies tables exist (legislation, legislation_templates, similarity tables)
+- `run_migrations_fresh_database_test` — Runs all 7 migrations on empty `:memory:` DB, verifies tables exist (legislation, legislation_templates, similarity tables, ingestion_jobs, topics)
 - `run_migrations_idempotent_test` — Runs migrations twice, verifies second run applies zero changes
 
 ### Legislation Repository Tests (`test/philstubs/data/legislation_repo_test.gleam`)
@@ -505,6 +505,218 @@ Tests live in `test/` and follow the gleeunit convention:
 - `templates_page_renders_template_cards_test` — Renders template titles, authors, download counts
 - `templates_page_renders_sort_links_test` — Renders sort control links
 
+### Topic Domain Tests (`test/philstubs/core/topic_test.gleam`)
+
+**TopicId** (2 tests):
+- `topic_id_roundtrip_test` — Create TopicId and extract string
+- `topic_id_to_json_test` — TopicId JSON encoding
+
+**AssignmentMethod** (2 tests):
+- `assignment_method_to_string_test` — All 3 methods to string (manual, auto_keyword, ingestion)
+- `assignment_method_from_string_roundtrip_test` — Roundtrip all 3 methods
+
+**Topic JSON** (1 test):
+- `topic_to_json_test` — Full Topic JSON encoding with all fields
+
+**TopicWithCount JSON** (1 test):
+- `topic_with_count_to_json_test` — TopicWithCount JSON encoding with legislation/template counts
+
+**CrossLevelSummary JSON** (1 test):
+- `cross_level_summary_to_json_test` — CrossLevelSummary JSON encoding with per-level counts and state breakdown
+
+### Auto-Tagger Tests (`test/philstubs/core/auto_tagger_test.gleam`)
+
+**Keyword Matching** (5 tests):
+- `find_matching_topics_title_match_test` — Matches keyword in title, returns InTitle source
+- `find_matching_topics_summary_match_test` — Matches keyword in summary, returns InSummary source
+- `find_matching_topics_both_match_test` — Keyword in both title and summary returns InBoth source
+- `find_matching_topics_case_insensitive_test` — Case-insensitive matching ("HOUSING" matches "housing")
+- `find_matching_topics_no_match_test` — Unrelated text returns empty list
+
+**Multi-Topic Matching** (1 test):
+- `find_matching_topics_multiple_topics_test` — Multiple topics matched from different keyword rules
+
+**Deduplication** (1 test):
+- `deduplicate_matches_prefers_in_both_test` — Same topic matched multiple times: InBoth > InTitle > InSummary
+
+### Topic Seed Tests (`test/philstubs/data/topic_seed_test.gleam`)
+
+**Seed Data** (2 tests):
+- `seed_topic_taxonomy_creates_topics_test` — Seeds 9 parent topics + child topics + keywords, verifies parent count
+- `seed_topic_taxonomy_idempotent_test` — Running seed twice produces same result (INSERT OR IGNORE)
+
+### Topic Repository Tests (`test/philstubs/data/topic_repo_test.gleam`)
+
+**CRUD Operations** (3 tests):
+- `insert_and_get_by_id_test` — Insert topic, retrieve by ID, verify all fields
+- `get_by_slug_test` — Retrieve topic by slug
+- `get_by_id_not_found_test` — Returns Ok(None) for nonexistent ID
+
+**Hierarchy** (2 tests):
+- `list_parent_topics_test` — List top-level topics (parent_id IS NULL)
+- `list_children_test` — List child topics for a given parent
+
+**Topic Tree** (1 test):
+- `list_topic_tree_test` — Full hierarchical tree with parents and nested children
+
+**Legislation Topic Assignments** (3 tests):
+- `assign_and_get_legislation_topics_test` — Assign topic to legislation and retrieve assignments
+- `remove_legislation_topic_test` — Remove topic assignment
+- `assign_legislation_topic_idempotent_test` — INSERT OR IGNORE prevents duplicates
+
+**Template Topic Assignments** (1 test):
+- `assign_and_get_template_topics_test` — Assign topic to template and retrieve assignments
+
+**Aggregation** (1 test):
+- `count_legislation_by_topic_test` — Count legislation per parent topic with child rollup
+
+**Cross-Level Summary** (1 test):
+- `get_cross_level_summary_test` — Counts by government level (federal, state, county, municipal) for a topic
+
+**Search** (1 test):
+- `search_topics_test` — Prefix search for autocomplete (e.g., "Hou" matches "Housing")
+
+**Pagination** (1 test):
+- `list_legislation_for_topic_test` — Paginated legislation list for a topic slug
+
+**Keywords** (1 test):
+- `list_all_topics_with_keywords_test` — Bulk load topic IDs with keyword lists for auto-tagger
+
+### Auto-Tagger Service Tests (`test/philstubs/data/auto_tagger_service_test.gleam`)
+
+**Single Legislation Tagging** (2 tests):
+- `auto_tag_legislation_single_test` — Tags legislation based on title/summary keyword matching, verifies "housing" topic assigned
+- `auto_tag_legislation_no_match_test` — Unrelated legislation receives no topic assignments
+
+**Bulk Tagging** (1 test):
+- `auto_tag_all_untagged_test` — Bulk auto-tags all legislation without topic assignments, verifies count and topic data
+
+**JSON Backfill** (1 test):
+- `backfill_from_json_topics_test` — Migrates JSON topics column values to normalized join table by matching against taxonomy names/slugs
+
+### Topic Handler Tests (`test/philstubs/web/topic_handler_test.gleam`)
+
+**Taxonomy API** (2 tests):
+- `api_topics_taxonomy_test` — GET /api/topics/taxonomy returns JSON with taxonomy tree including children
+- `api_topics_taxonomy_has_cors_test` — Response includes Access-Control-Allow-Origin: * header
+
+**Topic Detail API** (2 tests):
+- `api_topic_detail_test` — GET /api/topics/housing returns JSON with cross-level counts (federal_count, state_count)
+- `api_topic_detail_not_found_test` — Returns 404 with NOT_FOUND code for nonexistent topic slug
+
+**Topic Legislation API** (1 test):
+- `api_topic_legislation_test` — GET /api/topics/housing/legislation returns paginated JSON with items
+
+**Topic Search API** (1 test):
+- `api_topic_search_test` — GET /api/topics/search?q=Hou returns matching topics for autocomplete
+
+**Auto-Tag API** (1 test):
+- `api_auto_tag_test` — POST /api/topics/auto-tag triggers bulk auto-tagging, returns tagged_count
+
+**Browse Pages** (2 tests):
+- `browse_topics_page_test` — GET /browse/topics renders hierarchical topic browser with "Browse by Topic"
+- `browse_topic_detail_page_test` — GET /browse/topics/housing renders cross-level comparison page
+
+### Ingestion Job Domain Tests (`test/philstubs/core/ingestion_job_test.gleam`)
+
+**Source/Status String Conversions** (5 tests):
+- `source_to_string_federal_test` — Federal → "federal"
+- `source_to_string_state_test` — State → "state"
+- `source_to_string_local_test` — Local → "local"
+- `source_from_string_roundtrip_test` — Roundtrip all 3 sources
+- `source_from_string_invalid_test` — Unknown string returns Error(Nil)
+
+**Status Conversions** (3 tests):
+- `status_to_string_all_test` — All 4 statuses to string
+- `status_from_string_roundtrip_test` — Roundtrip all 4 statuses
+- `status_from_string_invalid_test` — Unknown string returns Error(Nil)
+
+**Schedule Config** (1 test):
+- `default_schedule_config_test` — Federal: 24h, State: 168h, Local: 168h
+
+**Backoff Calculation** (4 tests):
+- `calculate_backoff_zero_retries_test` — 0 retries → 30,000ms
+- `calculate_backoff_one_retry_test` — 1 retry → 60,000ms
+- `calculate_backoff_two_retries_test` — 2 retries → 120,000ms
+- `calculate_backoff_capped_test` — High retry count caps at 3,600,000ms (1 hour)
+
+**Retry Logic** (3 tests):
+- `should_retry_under_max_test` — Under max retries returns True
+- `should_retry_at_max_test` — At max retries returns False
+- `should_retry_over_max_test` — Over max retries returns False
+
+**JSON Encoding** (2 tests):
+- `job_to_json_test` — Full IngestionJob JSON encoding with all fields
+- `source_status_to_json_test` — SourceStatus JSON encoding
+
+**Utilities** (2 tests):
+- `all_sources_test` — Returns [Federal, State, Local]
+- `interval_for_source_test` — Returns correct interval per source from config
+
+### Ingestion Job Repository Tests (`test/philstubs/data/ingestion_job_repo_test.gleam`)
+
+**CRUD Operations** (4 tests):
+- `insert_and_get_by_id_test` — Insert job, retrieve by ID, verify all fields
+- `get_by_id_not_found_test` — Returns Ok(None) for nonexistent ID
+- `mark_running_test` — Sets status to Running, started_at populated
+- `mark_completed_test` — Sets status to Completed with counts and duration
+
+**Failure Tracking** (1 test):
+- `mark_failed_test` — Sets status to Failed with error message and duration
+
+**Listing** (4 tests):
+- `list_recent_ordering_test` — Returns jobs ordered by created_at DESC
+- `list_recent_limit_test` — Respects limit parameter
+- `list_by_source_filtering_test` — Filters by source string
+- `get_latest_by_source_test` — Returns most recent job for a source
+
+**Edge Cases** (1 test):
+- `get_latest_by_source_empty_test` — Returns Ok(None) when no jobs exist for source
+
+**Consecutive Failures** (2 tests):
+- `count_consecutive_failures_no_jobs_test` — Returns 0 when no jobs exist
+- `count_consecutive_failures_with_failures_test` — Counts trailing failures (stops at first non-failed job)
+
+### Ingestion Runner Tests (`test/philstubs/ingestion/ingestion_runner_test.gleam`)
+
+**Dispatch Tests** (1 test):
+- `run_federal_dispatches_test` — Verifies federal source dispatch path, accepts both Ok and config Error results
+
+### Scheduler Actor Tests (`test/philstubs/ingestion/scheduler_actor_test.gleam`)
+
+**Lifecycle** (3 tests):
+- `start_and_get_status_test` — Start actor, verify status (not running, config, source statuses)
+- `trigger_source_test` — Trigger federal source manually via actor message
+- `shutdown_stops_actor_test` — Send Shutdown, verify actor process terminates
+
+Uses mock runner (`mock_success_runner`) that returns `Ok(RunResult(records_fetched: 5, records_stored: 5))` for deterministic testing without real API calls.
+
+### Ingestion Handler Tests (`test/philstubs/web/ingestion_handler_test.gleam`)
+
+**Status API** (1 test):
+- `ingestion_status_no_scheduler_test` — GET /api/ingestion/status returns 503 when scheduler not running
+
+**Jobs API** (4 tests):
+- `ingestion_jobs_empty_test` — GET /api/ingestion/jobs returns empty list with count 0
+- `ingestion_jobs_with_data_test` — Returns jobs and correct count
+- `ingestion_jobs_with_source_filter_test` — ?source=federal filters to matching source
+- `ingestion_jobs_with_limit_test` — ?limit=2 caps returned jobs
+
+**Job Detail API** (2 tests):
+- `ingestion_job_detail_test` — GET /api/ingestion/jobs/:id returns job JSON
+- `ingestion_job_detail_not_found_test` — Returns 404 for nonexistent job
+
+**Trigger API** (1 test):
+- `ingestion_trigger_no_scheduler_test` — POST /api/ingestion/trigger returns 503 when scheduler not running
+
+**Admin Dashboard** (2 tests):
+- `ingestion_dashboard_renders_test` — GET /admin/ingestion renders dashboard with title and jobs section
+- `ingestion_dashboard_shows_jobs_test` — Dashboard displays job rows with source and status
+
+**Method Enforcement** (2 tests):
+- `ingestion_jobs_post_not_allowed_test` — POST to /api/ingestion/jobs returns 405
+- `ingestion_trigger_get_not_allowed_test` — GET to /api/ingestion/trigger returns 405
+
 ### Congress.gov Ingestion Tests
 
 #### Congress Types (`test/philstubs/ingestion/congress_types_test.gleam`)
@@ -702,6 +914,8 @@ Key patterns:
 - **Rendering tests**: Test UI components by rendering to string and checking content
 - **Database tests**: Use `:memory:` SQLite databases via `database.with_named_connection`
 - **HTTP tests**: Use `wisp/testing` module for request/response testing
+- **Actor tests**: Use mock runner functions injected into scheduler actor for deterministic behavior
+- **Taxonomy tests**: Seed taxonomy data in `setup_with_taxonomy` helper, then test against normalized topic tables
 
 ### Data Layer Testing Pattern
 
@@ -727,6 +941,70 @@ Key conventions:
 - Each test gets a fresh `:memory:` database — no shared state between tests
 - `run_migrations_from_sql` avoids dependency on filesystem `priv/` directory in tests
 - FTS5 search tests verify triggers keep the search index in sync with source tables
+
+### Scheduler Actor Testing Pattern
+
+The scheduler actor uses **function injection** for the runner, allowing mock runners in tests:
+
+```gleam
+import philstubs/ingestion/ingestion_runner.{type RunResult, RunResult}
+import philstubs/ingestion/scheduler_actor
+
+fn mock_success_runner(
+  _connection: sqlight.Connection,
+  _source: IngestionSource,
+) -> Result(RunResult, ingestion_runner.RunError) {
+  Ok(RunResult(records_fetched: 5, records_stored: 5))
+}
+
+pub fn start_and_get_status_test() {
+  let config = ScheduleConfig(
+    federal_interval_hours: 1,
+    state_interval_hours: 1,
+    local_interval_hours: 1,
+  )
+  let assert Ok(started) =
+    scheduler_actor.start(config, mock_success_runner)
+
+  let status = scheduler_actor.get_status(started.data)
+  status.is_running |> should.be_false
+
+  // Clean shutdown
+  process.send(started.data, scheduler_actor.Shutdown)
+}
+```
+
+Key patterns:
+- Mock runners avoid real API calls and rate limiting delays
+- Each test starts its own actor instance and shuts it down cleanly
+- `scheduler_actor.start` accepts a `runner_fn` parameter matching `fn(Connection, IngestionSource) -> Result(RunResult, RunError)`
+- Handler tests set `scheduler: None` in Context to test the "no scheduler" error paths
+- Handler tests with scheduler running are avoided in unit tests since they require a live actor; these are covered by manual verification
+
+### Topic Taxonomy Testing Pattern
+
+Topic tests use a shared `setup_with_taxonomy` helper that seeds the full taxonomy before each test:
+
+```gleam
+import philstubs/data/database
+import philstubs/data/test_helpers
+import philstubs/data/topic_seed
+
+fn setup_with_taxonomy(callback: fn(sqlight.Connection) -> Nil) -> Nil {
+  use connection <- database.with_named_connection(":memory:")
+  let assert Ok(_) = test_helpers.setup_test_db(connection)
+  let assert Ok(_) = topic_seed.seed_topic_taxonomy(connection)
+  callback(connection)
+}
+```
+
+Key patterns:
+- `topic_seed.seed_topic_taxonomy` populates 9 parent topics, ~27 child topics, and ~130 keywords
+- Seed is idempotent (uses INSERT OR IGNORE) — safe to call multiple times
+- Auto-tagger pure tests (`auto_tagger_test.gleam`) test keyword matching logic without a database
+- Auto-tagger service tests (`auto_tagger_service_test.gleam`) integrate the pure matcher with the database (insert legislation, run matcher, verify join table entries)
+- Topic handler tests use `wisp/simulate` for HTTP endpoint testing with seeded taxonomy
+- Cross-level summary tests insert legislation at different government levels and verify per-level counts
 
 ## Manual Verification
 
@@ -780,7 +1058,8 @@ curl http://localhost:8000/browse                    # Expect: HTML with governm
 curl http://localhost:8000/browse/states              # Expect: HTML with state list and counts
 curl http://localhost:8000/browse/state/CA             # Expect: HTML with CA counties/municipalities
 curl -v http://localhost:8000/browse/federal           # Expect: 303 redirect to /search?level=federal
-curl http://localhost:8000/browse/topics               # Expect: HTML with topic list and counts
+curl http://localhost:8000/browse/topics               # Expect: HTML with hierarchical topic taxonomy
+curl http://localhost:8000/browse/topics/housing       # Expect: HTML cross-level comparison for Housing topic
 
 # REST API — Legislation:
 curl http://localhost:8000/api/legislation                    # Expect: Paginated JSON list
@@ -813,6 +1092,13 @@ curl "http://localhost:8000/api/levels/county/jurisdictions?state=CA"       # Ex
 curl "http://localhost:8000/api/levels/municipal/jurisdictions?state=WA"    # Expect: JSON with WA municipal jurisdictions
 curl http://localhost:8000/api/topics                                       # Expect: JSON with topics array
 
+# Topic Taxonomy API:
+curl http://localhost:8000/api/topics/taxonomy                              # Expect: JSON hierarchical tree with children and counts
+curl http://localhost:8000/api/topics/housing                               # Expect: JSON with cross-level counts (federal_count, state_count, etc.)
+curl http://localhost:8000/api/topics/housing/legislation                   # Expect: JSON paginated legislation for topic
+curl "http://localhost:8000/api/topics/search?q=Hou"                       # Expect: JSON matching topics for autocomplete
+curl -X POST http://localhost:8000/api/topics/auto-tag                     # Expect: JSON with tagged_count
+
 # Similarity API:
 curl http://localhost:8000/api/legislation/LEGISLATION_ID/similar
 # Expect: JSON with legislation_id and similar array containing similarity scores
@@ -829,6 +1115,14 @@ curl -X POST http://localhost:8000/api/similarity/compute
 # Diff view:
 curl http://localhost:8000/legislation/LEGISLATION_ID/diff/COMPARISON_ID
 # Expect: HTML diff page comparing two pieces of legislation
+
+# Ingestion monitoring:
+curl http://localhost:8000/admin/ingestion                              # Expect: HTML dashboard page
+curl http://localhost:8000/api/ingestion/status                         # Expect: JSON with schedule config and source statuses
+curl http://localhost:8000/api/ingestion/jobs                           # Expect: JSON with jobs array and count
+curl "http://localhost:8000/api/ingestion/jobs?source=federal&limit=5"  # Expect: Filtered/limited jobs
+curl http://localhost:8000/api/ingestion/jobs/JOB_ID                    # Expect: JSON single job detail
+curl -X POST "http://localhost:8000/api/ingestion/trigger?source=federal"  # Expect: 202 accepted or config error
 
 # REST API — CORS:
 curl -X OPTIONS http://localhost:8000/api/legislation -H "Origin: http://example.com" -v
