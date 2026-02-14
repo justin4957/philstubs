@@ -7,14 +7,18 @@ import lustre/element/html
 import philstubs/ui/layout
 
 /// Render the explore page, optionally pre-loading a specific node via ?id=...
-pub fn explore_page(initial_node_id: Option(String)) -> Element(Nil) {
+/// or a saved exploration via ?state=...
+pub fn explore_page(
+  initial_node_id: Option(String),
+  initial_exploration_id: Option(String),
+) -> Element(Nil) {
   layout.page_layout_with_meta("Explore — PHILSTUBS", head_scripts(), [
     html.div([attribute.class("explore-page")], [
       controls_sidebar(),
       graph_container(),
       detail_panel(),
     ]),
-    initialization_script(initial_node_id),
+    initialization_script(initial_node_id, initial_exploration_id),
   ])
 }
 
@@ -119,6 +123,76 @@ fn controls_sidebar() -> Element(Nil) {
         [html.text("Load Cluster")],
       ),
     ]),
+    // Explorations (save/load)
+    html.h2([], [html.text("Explorations")]),
+    html.div([attribute.class("explore-save-group")], [
+      html.button(
+        [
+          attribute.id("explore-save-button"),
+          attribute.class("explore-action-button"),
+        ],
+        [html.text("Save")],
+      ),
+      html.button(
+        [
+          attribute.id("explore-load-button"),
+          attribute.class("explore-action-button explore-action-secondary"),
+        ],
+        [html.text("Load")],
+      ),
+    ]),
+    // Save dialog (hidden by default)
+    html.div(
+      [
+        attribute.id("explore-save-dialog"),
+        attribute.class("explore-save-dialog"),
+      ],
+      [
+        html.input([
+          attribute.id("explore-save-title"),
+          attribute.class("explore-save-input"),
+          attribute.type_("text"),
+          attribute.placeholder("Title..."),
+        ]),
+        html.input([
+          attribute.id("explore-save-description"),
+          attribute.class("explore-save-input"),
+          attribute.type_("text"),
+          attribute.placeholder("Description (optional)..."),
+        ]),
+        html.label([attribute.class("explore-save-checkbox-label")], [
+          html.input([
+            attribute.id("explore-save-public"),
+            attribute.type_("checkbox"),
+          ]),
+          html.text(" Public"),
+        ]),
+        html.div([attribute.class("explore-save-actions")], [
+          html.button(
+            [
+              attribute.id("explore-save-confirm"),
+              attribute.class("explore-action-button"),
+            ],
+            [html.text("Confirm")],
+          ),
+          html.button(
+            [
+              attribute.id("explore-save-cancel"),
+              attribute.class("explore-action-button explore-action-secondary"),
+            ],
+            [html.text("Cancel")],
+          ),
+        ]),
+      ],
+    ),
+    // Explorations list panel (hidden by default)
+    html.div(
+      [
+        attribute.id("explore-list-panel"),
+        attribute.class("explore-list-panel"),
+      ],
+      [],
+    ),
     // Zoom controls
     html.div([attribute.class("explore-zoom-controls")], [
       html.button(
@@ -229,13 +303,22 @@ fn detail_panel() -> Element(Nil) {
   )
 }
 
-fn initialization_script(initial_node_id: Option(String)) -> Element(Nil) {
-  let init_call = case initial_node_id {
-    Some(node_id) -> {
+fn initialization_script(
+  initial_node_id: Option(String),
+  initial_exploration_id: Option(String),
+) -> Element(Nil) {
+  let init_call = case initial_node_id, initial_exploration_id {
+    Some(node_id), _ -> {
       let sanitized_id = sanitize_js_string(node_id)
       "PhilstubsExplorer.init({ initialNodeId: '" <> sanitized_id <> "' });"
     }
-    None -> "PhilstubsExplorer.init({});"
+    None, Some(exploration_id) -> {
+      let sanitized_id = sanitize_js_string(exploration_id)
+      "PhilstubsExplorer.init({ initialExplorationId: '"
+      <> sanitized_id
+      <> "' });"
+    }
+    None, None -> "PhilstubsExplorer.init({});"
   }
   element.element("script", [], [html.text(init_call)])
 }

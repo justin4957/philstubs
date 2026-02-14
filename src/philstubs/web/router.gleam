@@ -24,6 +24,7 @@ import philstubs/web/api_middleware
 import philstubs/web/auth_handler
 import philstubs/web/browse_handler
 import philstubs/web/context.{type Context}
+import philstubs/web/exploration_handler
 import philstubs/web/explore_handler
 import philstubs/web/export_handler
 import philstubs/web/impact_handler
@@ -88,7 +89,7 @@ pub fn handle_request(
     ["admin", "ingestion"] ->
       handle_ingestion_dashboard(request, enriched_context)
     // --- Explore page ---
-    ["explore"] -> handle_explore_page(request)
+    ["explore"] -> handle_explore_page(request, enriched_context)
     // --- API routes ---
     ["api", ..api_segments] ->
       route_api(request, api_segments, enriched_context)
@@ -251,6 +252,14 @@ fn route_api(
           )
         ["references", "extract"] ->
           reference_handler.handle_extract_citations(request, db_connection)
+        ["explorations"] ->
+          handle_api_explorations_dispatch(request, application_context)
+        ["explorations", exploration_id] ->
+          handle_api_exploration_dispatch(
+            request,
+            exploration_id,
+            application_context,
+          )
         ["explore", "node", legislation_id] ->
           handle_api_explore_node(request, legislation_id, db_connection)
         ["explore", "expand", legislation_id] ->
@@ -556,6 +565,75 @@ fn handle_api_explore_cluster(
   explore_handler.handle_cluster(request, topic_slug, db_connection)
 }
 
+// --- Explorations API routes ---
+
+fn handle_api_explorations_dispatch(
+  request: Request,
+  application_context: Context,
+) -> Response {
+  let db_connection = application_context.db_connection
+  case request.method {
+    http.Get ->
+      exploration_handler.handle_list(
+        request,
+        db_connection,
+        application_context.current_user,
+      )
+    http.Post -> {
+      case application_context.current_user {
+        None -> api_error.unauthorized()
+        Some(current_user) ->
+          exploration_handler.handle_create(
+            request,
+            db_connection,
+            user.user_id_to_string(current_user.id),
+          )
+      }
+    }
+    _ -> api_error.method_not_allowed([http.Get, http.Post])
+  }
+}
+
+fn handle_api_exploration_dispatch(
+  request: Request,
+  exploration_id: String,
+  application_context: Context,
+) -> Response {
+  let db_connection = application_context.db_connection
+  case request.method {
+    http.Get ->
+      exploration_handler.handle_get(
+        exploration_id,
+        db_connection,
+        application_context.current_user,
+      )
+    http.Put -> {
+      case application_context.current_user {
+        None -> api_error.unauthorized()
+        Some(current_user) ->
+          exploration_handler.handle_update(
+            request,
+            exploration_id,
+            db_connection,
+            user.user_id_to_string(current_user.id),
+          )
+      }
+    }
+    http.Delete -> {
+      case application_context.current_user {
+        None -> api_error.unauthorized()
+        Some(current_user) ->
+          exploration_handler.handle_delete(
+            exploration_id,
+            db_connection,
+            user.user_id_to_string(current_user.id),
+          )
+      }
+    }
+    _ -> api_error.method_not_allowed([http.Get, http.Put, http.Delete])
+  }
+}
+
 // --- Docs routes ---
 
 fn handle_api_docs_page(request: Request) -> Response {
@@ -565,15 +643,25 @@ fn handle_api_docs_page(request: Request) -> Response {
   |> wisp.html_response(200)
 }
 
-fn handle_explore_page(request: Request) -> Response {
+fn handle_explore_page(
+  request: Request,
+  _application_context: Context,
+) -> Response {
   use <- wisp.require_method(request, http.Get)
 
+  let query_params = wisp.get_query(request)
+
   let initial_node_id =
-    wisp.get_query(request)
+    query_params
     |> list.key_find("id")
     |> option.from_result
 
-  explore_page.explore_page(initial_node_id)
+  let initial_exploration_id =
+    query_params
+    |> list.key_find("state")
+    |> option.from_result
+
+  explore_page.explore_page(initial_node_id, initial_exploration_id)
   |> element.to_document_string
   |> wisp.html_response(200)
 }

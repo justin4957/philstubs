@@ -2592,3 +2592,143 @@ footer {
     z-index: 100;
   }
 }
+
+/* --- Save/Load Explorations --- */
+
+.explore-save-group {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.explore-action-secondary {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-rule);
+}
+
+.explore-action-secondary:hover {
+  background: var(--color-rule);
+}
+
+.explore-action-danger {
+  background: var(--color-bg);
+  color: #c62828;
+  border: 1px solid #c62828;
+}
+
+.explore-action-danger:hover {
+  background: #c62828;
+  color: var(--color-bg);
+}
+
+.explore-save-dialog {
+  display: none;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-rule);
+  background: var(--color-bg);
+  margin-top: var(--spacing-xs);
+}
+
+.explore-save-dialog-visible {
+  display: flex;
+}
+
+.explore-save-input {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  padding: var(--spacing-xs);
+  border: none;
+  border-bottom: 1px solid var(--color-rule);
+  background: transparent;
+  width: 100%;
+}
+
+.explore-save-input:focus {
+  outline: none;
+  border-bottom-color: var(--color-black);
+}
+
+.explore-save-checkbox-label {
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+}
+
+.explore-save-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.explore-list-panel {
+  display: none;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-rule);
+  background: var(--color-bg);
+  margin-top: var(--spacing-xs);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.explore-list-panel-visible {
+  display: flex;
+}
+
+.explore-list-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0 0 var(--spacing-xs) 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.explore-list-empty {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.explore-list-item {
+  padding: var(--spacing-xs) 0;
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.explore-list-item:last-child {
+  border-bottom: none;
+}
+
+.explore-list-item-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.explore-list-item-desc {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  margin-top: 2px;
+}
+
+.explore-list-item-meta {
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.explore-list-item-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.explore-list-item-actions .explore-action-button {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+}
