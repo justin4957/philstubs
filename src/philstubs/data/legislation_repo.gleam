@@ -78,6 +78,27 @@ pub fn get_by_id(
   }
 }
 
+/// List the most recently added legislation records, up to the given limit.
+pub fn list_recent(
+  connection: sqlight.Connection,
+  limit: Int,
+) -> Result(List(Legislation), sqlight.Error) {
+  let sql =
+    "SELECT
+    id, title, summary, body,
+    government_level, level_state_code, level_county_name, level_municipality_name,
+    legislation_type, status, introduced_date,
+    source_url, source_identifier, sponsors, topics
+    FROM legislation ORDER BY created_at DESC LIMIT ?"
+
+  sqlight.query(
+    sql,
+    on: connection,
+    with: [sqlight.int(limit)],
+    expecting: legislation_row_decoder(),
+  )
+}
+
 /// List all legislation records.
 pub fn list_all(
   connection: sqlight.Connection,
