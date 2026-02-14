@@ -202,6 +202,42 @@ CREATE INDEX IF NOT EXISTS idx_template_topics_template ON template_topics(templ
 CREATE INDEX IF NOT EXISTS idx_topic_keywords_topic ON topic_keywords(topic_id);
 "
 
+/// SQL for creating cross-reference tables (matches priv/migrations/009_create_cross_references.sql).
+pub const create_cross_references_sql = "
+CREATE TABLE IF NOT EXISTS legislation_references (
+  id TEXT PRIMARY KEY,
+  source_legislation_id TEXT NOT NULL,
+  target_legislation_id TEXT,
+  citation_text TEXT NOT NULL,
+  reference_type TEXT NOT NULL DEFAULT 'references',
+  confidence REAL NOT NULL DEFAULT 1.0,
+  extractor TEXT NOT NULL DEFAULT 'gleam_native',
+  extracted_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(source_legislation_id, citation_text),
+  FOREIGN KEY(source_legislation_id) REFERENCES legislation(id),
+  FOREIGN KEY(target_legislation_id) REFERENCES legislation(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_references_source
+  ON legislation_references(source_legislation_id);
+CREATE INDEX IF NOT EXISTS idx_references_target
+  ON legislation_references(target_legislation_id);
+CREATE INDEX IF NOT EXISTS idx_references_type
+  ON legislation_references(reference_type);
+
+CREATE TABLE IF NOT EXISTS query_maps (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT NOT NULL DEFAULT '',
+  query_template TEXT NOT NULL,
+  parameters TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_query_maps_name
+  ON query_maps(name);
+"
+
 /// SQL for creating similarity tables (matches priv/migrations/006_create_similarity_tables.sql).
 pub const create_similarity_tables_sql = "
 CREATE TABLE IF NOT EXISTS legislation_similarities (
@@ -259,6 +295,7 @@ pub fn all_migrations() -> List(#(String, String)) {
     #("006", create_similarity_tables_sql),
     #("007", create_ingestion_jobs_sql),
     #("008", create_topic_taxonomy_sql),
+    #("009", create_cross_references_sql),
   ]
 }
 

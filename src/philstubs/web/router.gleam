@@ -26,6 +26,7 @@ import philstubs/web/export_handler
 import philstubs/web/ingestion_handler
 import philstubs/web/legislation_handler
 import philstubs/web/middleware
+import philstubs/web/reference_handler
 import philstubs/web/similarity_handler
 import philstubs/web/template_handler
 import philstubs/web/topic_handler
@@ -173,6 +174,18 @@ fn route_api(
           handle_api_similar_legislation(request, legislation_id, db_connection)
         ["legislation", legislation_id, "adoption-timeline"] ->
           handle_api_adoption_timeline(request, legislation_id, db_connection)
+        ["legislation", legislation_id, "references"] ->
+          reference_handler.handle_references_from(
+            request,
+            legislation_id,
+            db_connection,
+          )
+        ["legislation", legislation_id, "referenced-by"] ->
+          reference_handler.handle_referenced_by(
+            request,
+            legislation_id,
+            db_connection,
+          )
         ["legislation", legislation_id] ->
           handle_api_legislation_detail(request, legislation_id, db_connection)
         ["templates"] ->
@@ -220,6 +233,16 @@ fn route_api(
           ingestion_handler.handle_job_detail(request, job_id, db_connection)
         ["ingestion", "trigger"] ->
           ingestion_handler.handle_trigger(request, application_context)
+        ["query-maps"] ->
+          reference_handler.handle_query_maps_dispatch(request, db_connection)
+        ["query-maps", query_map_id] ->
+          reference_handler.handle_query_map_detail(
+            request,
+            query_map_id,
+            db_connection,
+          )
+        ["references", "extract"] ->
+          reference_handler.handle_extract_citations(request, db_connection)
         _ -> api_error.not_found("Endpoint")
       }
       api_middleware.apply_cors(response)

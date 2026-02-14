@@ -85,7 +85,7 @@ Tests live in `test/` and follow the gleeunit convention:
 ### Migration Tests (`test/philstubs/data/migration_test.gleam`)
 
 **Migration Runner** (2 tests):
-- `run_migrations_fresh_database_test` — Runs all 7 migrations on empty `:memory:` DB, verifies tables exist (legislation, legislation_templates, similarity tables, ingestion_jobs, topics)
+- `run_migrations_fresh_database_test` — Runs all 8 migrations on empty `:memory:` DB, verifies tables exist (legislation, legislation_templates, similarity tables, ingestion_jobs, topics, cross-references)
 - `run_migrations_idempotent_test` — Runs migrations twice, verifies second run applies zero changes
 
 ### Legislation Repository Tests (`test/philstubs/data/legislation_repo_test.gleam`)
@@ -667,6 +667,69 @@ Tests live in `test/` and follow the gleeunit convention:
 **JSON Backfill** (1 test):
 - `backfill_from_json_topics_test` — Migrates JSON topics column values to normalized join table by matching against taxonomy names/slugs
 
+### Citation Extractor Tests (`test/philstubs/core/citation_extractor_test.gleam`)
+
+**Citation Extraction** (9 tests):
+- `extract_usc_citation_test` — Extracts USC citations like "42 U.S.C. 1983" with confidence 0.9
+- `extract_public_law_citation_test` — Extracts "Pub. L. 117-169" citations with confidence 0.9
+- `extract_public_law_full_text_test` — Extracts "Public Law 110-343" full-form citations
+- `extract_cfr_citation_test` — Extracts CFR citations like "40 C.F.R. 98" with confidence 0.9
+- `extract_bill_reference_test` — Extracts bill references "H.R. 1234" and "S. 567" with confidence 0.8
+- `extract_section_reference_test` — Extracts "section 101" references with confidence 0.6
+- `extract_multiple_citations_test` — Extracts multiple citation types from a single text
+- `extract_case_insensitive_test` — Both lowercase and mixed-case citations are extracted
+- `extract_empty_text_returns_empty_test` — Empty text returns no citations
+- `extract_irrelevant_text_returns_empty_test` — Non-legal text returns no citations
+
+**Reference Type Inference** (5 tests):
+- `infer_amends_reference_type_test` — "amends" context word → Amends type
+- `infer_supersedes_from_repeal_test` — "repeal" context word → Supersedes type
+- `infer_implements_from_pursuant_test` — "pursuant to" context → Implements type
+- `infer_delegates_reference_type_test` — "delegate" context word → Delegates type
+- `infer_default_references_type_test` — Neutral context defaults to References type
+
+**Deduplication** (1 test):
+- `deduplicate_keeps_highest_confidence_test` — Duplicate citations keep highest confidence score
+
+**Utility** (3 tests):
+- `citation_type_to_string_test` — All 5 citation types convert to string
+- `context_based_reference_type_extraction_test` — Full extraction with "amends" context infers Amends type
+- `joint_resolution_bill_reference_test` — H.J.Res. patterns detected as bill references
+
+### Reference Repository Tests (`test/philstubs/data/reference_repo_test.gleam`)
+
+**Cross-Reference CRUD** (6 tests):
+- `insert_and_find_references_from_test` — Insert reference, query outgoing refs, verify citation text
+- `insert_and_find_references_to_test` — Insert reference with target, query incoming refs
+- `unresolved_citation_has_null_target_test` — Unresolved citations have None target_legislation_id
+- `idempotent_insert_test` — INSERT OR REPLACE prevents duplicate references
+- `delete_references_for_test` — Deletes all references for a source legislation
+- `count_references_empty_test` — Empty table returns count 0
+
+**Query Map CRUD** (4 tests):
+- `insert_and_get_query_map_test` — Insert query map and retrieve by ID
+- `get_nonexistent_query_map_returns_none_test` — Returns None for nonexistent ID
+- `list_query_maps_test` — Lists all query maps ordered by name ASC
+- `delete_query_map_test` — Deletes query map, verifies gone
+
+### Reference Handler Tests (`test/philstubs/web/reference_handler_test.gleam`)
+
+**References API** (3 tests):
+- `api_references_from_returns_200_test` — GET /api/legislation/:id/references returns JSON with outgoing references
+- `api_references_from_empty_test` — Returns empty references array for nonexistent legislation
+- `api_referenced_by_returns_200_test` — GET /api/legislation/:id/referenced-by returns incoming references
+
+**Query Maps API** (4 tests):
+- `api_list_query_maps_returns_200_test` — GET /api/query-maps returns JSON with query_maps array
+- `api_create_query_map_returns_201_test` — POST /api/query-maps creates query map, returns 201
+- `api_query_map_detail_test` — GET /api/query-maps/:id returns single query map
+- `api_query_map_not_found_test` — Returns 404 for nonexistent query map
+- `api_create_query_map_missing_name_returns_400_test` — Missing name field returns 400 validation error
+
+**Citation Extraction API** (2 tests):
+- `api_extract_citations_test` — POST /api/references/extract extracts citations from posted text
+- `api_extract_citations_empty_text_returns_400_test` — Empty text returns 400 validation error
+
 ### Topic Handler Tests (`test/philstubs/web/topic_handler_test.gleam`)
 
 **Taxonomy API** (2 tests):
@@ -1033,7 +1096,7 @@ pub fn my_dialogue_test() {
 
 Gleam currently has no native code coverage tooling. The Erlang `cover` module exists on the BEAM but reports line numbers against generated `.erl` files, which do not map back to Gleam source lines, making the output impractical to use.
 
-**Current approach**: Comprehensive testing (583+ tests) with CI enforcement via `gleam test` in the GitHub Actions workflow. Test coverage spans pure domain logic, database operations, HTTP handlers, ingestion pipelines, and interaction flow documentation (dialogue tests).
+**Current approach**: Comprehensive testing (622+ tests) with CI enforcement via `gleam test` in the GitHub Actions workflow. Test coverage spans pure domain logic, database operations, HTTP handlers, ingestion pipelines, cross-reference extraction, and interaction flow documentation (dialogue tests).
 
 **Future**: The Gleam ecosystem may develop coverage tooling as the language matures. Monitor the [Gleam GitHub discussions](https://github.com/gleam-lang/gleam/discussions) and community tools for coverage support.
 
@@ -1238,6 +1301,31 @@ curl "http://localhost:8000/api/export/legislation?format=csv"            # Expe
 curl "http://localhost:8000/api/export/legislation?level=federal&format=csv"  # Expect: Filtered CSV
 curl "http://localhost:8000/api/export/templates?format=csv"              # Expect: Template CSV download
 curl "http://localhost:8000/api/export/search?q=climate&format=csv"       # Expect: Search result CSV download
+
+# Cross-Reference API:
+curl http://localhost:8000/api/legislation/LEGISLATION_ID/references
+# Expect: JSON with legislation_id and references array
+
+curl http://localhost:8000/api/legislation/LEGISLATION_ID/referenced-by
+# Expect: JSON with legislation_id and referenced_by array
+
+# Query Maps API:
+curl http://localhost:8000/api/query-maps
+# Expect: JSON with query_maps array and count
+
+curl -X POST http://localhost:8000/api/query-maps \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Find amendments","query_template":"SELECT * FROM legislation_references WHERE reference_type = '\''amends'\''"}'
+# Expect: 201 with created query map JSON
+
+curl http://localhost:8000/api/query-maps/find-amendments
+# Expect: JSON with query map details
+
+# Citation Extraction API:
+curl -X POST http://localhost:8000/api/references/extract \
+  -H "Content-Type: application/json" \
+  -d '{"text":"This bill amends 42 U.S.C. 1983 and references Pub. L. 117-169."}'
+# Expect: JSON with citations array and count
 
 # Similarity API:
 curl http://localhost:8000/api/legislation/LEGISLATION_ID/similar
