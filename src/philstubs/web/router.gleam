@@ -12,6 +12,7 @@ import philstubs/ingestion/scheduler_actor
 import philstubs/search/search_query
 import philstubs/search/search_repo
 import philstubs/search/search_results
+import philstubs/ui/api_docs_page
 import philstubs/ui/ingestion_dashboard_page
 import philstubs/ui/pages
 import philstubs/ui/search_page
@@ -21,6 +22,7 @@ import philstubs/web/api_middleware
 import philstubs/web/auth_handler
 import philstubs/web/browse_handler
 import philstubs/web/context.{type Context}
+import philstubs/web/export_handler
 import philstubs/web/ingestion_handler
 import philstubs/web/legislation_handler
 import philstubs/web/middleware
@@ -75,6 +77,8 @@ pub fn handle_request(
       handle_template_download(request, template_id, db_connection)
     ["templates", template_id] ->
       handle_template_by_id(request, template_id, enriched_context)
+    // --- Docs routes ---
+    ["docs", "api"] -> handle_api_docs_page(request)
     // --- Admin routes ---
     ["admin", "ingestion"] ->
       handle_ingestion_dashboard(request, enriched_context)
@@ -201,6 +205,11 @@ fn route_api(
           )
         ["topics", topic_slug] ->
           topic_handler.handle_topic_detail(request, topic_slug, db_connection)
+        ["export", "legislation"] ->
+          handle_api_export_legislation(request, db_connection)
+        ["export", "templates"] ->
+          handle_api_export_templates(request, db_connection)
+        ["export", "search"] -> handle_api_export_search(request, db_connection)
         ["similarity", "compute"] ->
           handle_api_compute_similarities(request, db_connection)
         ["ingestion", "status"] ->
@@ -458,6 +467,41 @@ fn handle_api_compute_similarities(
 ) -> Response {
   use <- wisp.require_method(request, http.Post)
   similarity_handler.handle_compute_similarities(db_connection)
+}
+
+// --- Docs routes ---
+
+fn handle_api_docs_page(request: Request) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  api_docs_page.api_docs_page()
+  |> element.to_document_string
+  |> wisp.html_response(200)
+}
+
+// --- Export routes ---
+
+fn handle_api_export_legislation(
+  request: Request,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  export_handler.handle_export_legislation(request, db_connection)
+}
+
+fn handle_api_export_templates(
+  request: Request,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  export_handler.handle_export_templates(request, db_connection)
+}
+
+fn handle_api_export_search(
+  request: Request,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  export_handler.handle_export_search(request, db_connection)
 }
 
 // --- Legislation routes ---

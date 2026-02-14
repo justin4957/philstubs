@@ -257,6 +257,35 @@ Tests live in `test/` and follow the gleeunit convention:
 **Template Matching** (1 test):
 - `compute_template_matches_test` — Computes template-to-legislation matches, stores results
 
+### Export Handler Tests (`test/philstubs/web/export_handler_test.gleam`)
+
+**Legislation Export** (7 tests):
+- `export_legislation_json_test` — GET /api/export/legislation returns JSON with export_format, total_count, and items
+- `export_legislation_csv_test` — GET /api/export/legislation?format=csv returns CSV with header and data rows
+- `export_legislation_csv_content_type_test` — CSV response has text/csv; charset=utf-8 content-type
+- `export_legislation_csv_content_disposition_test` — CSV has Content-Disposition: attachment; filename="legislation-export.csv"
+- `export_legislation_default_format_is_json_test` — No format param defaults to application/json content-type
+- `export_legislation_empty_test` — Empty database returns CSV with only header row
+- `export_legislation_cors_headers_test` — Export responses include Access-Control-Allow-Origin: * header
+
+**Template Export** (3 tests):
+- `export_templates_json_test` — GET /api/export/templates returns JSON with template data
+- `export_templates_csv_test` — GET /api/export/templates?format=csv returns CSV with template header and data
+- `export_templates_empty_test` — Empty database returns CSV with only header row
+
+**Search Export** (2 tests):
+- `export_search_json_test` — GET /api/export/search?q=climate returns JSON with matching legislation
+- `export_search_csv_test` — GET /api/export/search?q=climate&format=csv returns CSV with matching data
+
+**API Docs Page** (4 tests):
+- `api_docs_page_renders_test` — GET /docs/api returns 200 with "API Documentation" title
+- `api_docs_page_contains_export_docs_test` — Page includes export endpoint documentation
+- `api_docs_page_contains_openapi_link_test` — Page includes link to openapi.json
+- `api_docs_page_nav_link_test` — Page navigation includes API link
+
+**Content-Disposition** (1 test):
+- `export_legislation_json_content_disposition_test` — JSON export has filename="legislation-export.json"
+
 ### Similarity Handler Tests (`test/philstubs/web/similarity_handler_test.gleam`)
 
 **Similar Legislation API** (2 tests):
@@ -504,6 +533,50 @@ Tests live in `test/` and follow the gleeunit convention:
 - `templates_page_renders_empty_state_test` — Empty list shows "No templates yet" message
 - `templates_page_renders_template_cards_test` — Renders template titles, authors, download counts
 - `templates_page_renders_sort_links_test` — Renders sort control links
+
+### Export Format Tests (`test/philstubs/core/export_format_test.gleam`)
+
+**Format Parsing** (3 tests):
+- `from_string_json_test` — "json" parses to Json
+- `from_string_csv_test` — "csv" parses to Csv
+- `from_string_unknown_defaults_to_json_test` — Unknown strings ("xml", "", "CSV") default to Json
+
+**Format Properties** (4 tests):
+- `content_type_json_test` — Json → "application/json; charset=utf-8"
+- `content_type_csv_test` — Csv → "text/csv; charset=utf-8"
+- `file_extension_json_test` — Json → ".json"
+- `file_extension_csv_test` — Csv → ".csv"
+
+**String Conversion** (3 tests):
+- `to_string_json_test` — Json → "json"
+- `to_string_csv_test` — Csv → "csv"
+- `to_string_roundtrip_test` — Roundtrip conversion for both formats
+
+### CSV Export Tests (`test/philstubs/core/csv_export_test.gleam`)
+
+**Field Escaping** (6 tests):
+- `escape_csv_field_plain_text_test` — Plain text passes through unchanged
+- `escape_csv_field_with_comma_test` — Commas trigger quoting ("Hello, World" → "\"Hello, World\"")
+- `escape_csv_field_with_quotes_test` — Double quotes are doubled and field is quoted
+- `escape_csv_field_with_newline_test` — Newlines trigger quoting
+- `escape_csv_field_empty_string_test` — Empty string passes through unchanged
+- `escape_csv_field_with_all_special_chars_test` — Combined commas, quotes, and newlines
+
+**Semicolon Joining** (3 tests):
+- `join_with_semicolons_test` — Joins multiple values with ";"
+- `join_with_semicolons_empty_test` — Empty list returns empty string
+- `join_with_semicolons_single_test` — Single value returns unchanged
+
+**Legislation CSV** (5 tests):
+- `legislation_to_csv_single_record_test` — Header row + data row with all fields
+- `legislation_to_csv_multiple_records_test` — Header + 2 data rows
+- `legislation_to_csv_empty_list_test` — Only header row for empty list
+- `legislation_to_csv_special_characters_test` — Title with commas is quoted in CSV output
+- `legislation_to_csv_none_source_url_test` — None source_url produces empty field (consecutive commas)
+
+**Template CSV** (2 tests):
+- `templates_to_csv_single_record_test` — Header row + data row with template fields
+- `templates_to_csv_empty_list_test` — Only header row for empty list
 
 ### Topic Domain Tests (`test/philstubs/core/topic_test.gleam`)
 
@@ -1098,6 +1171,17 @@ curl http://localhost:8000/api/topics/housing                               # Ex
 curl http://localhost:8000/api/topics/housing/legislation                   # Expect: JSON paginated legislation for topic
 curl "http://localhost:8000/api/topics/search?q=Hou"                       # Expect: JSON matching topics for autocomplete
 curl -X POST http://localhost:8000/api/topics/auto-tag                     # Expect: JSON with tagged_count
+
+# API Documentation:
+curl http://localhost:8000/docs/api                                      # Expect: HTML API docs page
+curl http://localhost:8000/static/openapi.json                            # Expect: OpenAPI 3.0 specification JSON
+
+# Bulk Data Export:
+curl "http://localhost:8000/api/export/legislation?format=json"           # Expect: JSON download with items array
+curl "http://localhost:8000/api/export/legislation?format=csv"            # Expect: CSV download with header + data rows
+curl "http://localhost:8000/api/export/legislation?level=federal&format=csv"  # Expect: Filtered CSV
+curl "http://localhost:8000/api/export/templates?format=csv"              # Expect: Template CSV download
+curl "http://localhost:8000/api/export/search?q=climate&format=csv"       # Expect: Search result CSV download
 
 # Similarity API:
 curl http://localhost:8000/api/legislation/LEGISLATION_ID/similar

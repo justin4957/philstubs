@@ -2005,6 +2005,122 @@ footer {
 }
 
 /* ================================================================
+   API DOCUMENTATION
+   ================================================================ */
+
+.api-docs {
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.api-intro {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-lg);
+}
+
+.endpoint-section {
+  margin-top: var(--spacing-xl);
+}
+
+.endpoint-card {
+  padding: var(--spacing-md) 0;
+  border-bottom: 1px solid var(--color-bg-subtle);
+}
+
+.endpoint-card:last-child {
+  border-bottom: none;
+}
+
+.endpoint-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.method-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid;
+  border-radius: 0;
+  font-family: var(--font-mono);
+}
+
+.method-get {
+  border-color: var(--color-enacted);
+  color: var(--color-enacted);
+}
+
+.method-post {
+  border-color: var(--color-level);
+  color: var(--color-level);
+}
+
+.method-put {
+  border-color: var(--color-status);
+  color: var(--color-status);
+}
+
+.method-delete {
+  border-color: var(--color-vetoed);
+  color: var(--color-vetoed);
+}
+
+.endpoint-path {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-black);
+}
+
+.param-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin: var(--spacing-sm) 0;
+}
+
+.param-table th {
+  text-align: left;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.param-table td {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-bottom: 1px solid var(--color-bg-subtle);
+  vertical-align: top;
+}
+
+.param-table td code {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--color-type);
+}
+
+.code-example {
+  background: var(--color-bg-subtle);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-left: 2px solid var(--color-black);
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  margin: var(--spacing-sm) 0;
+}
+
+/* ================================================================
    RESPONSIVE
    ================================================================ */
 
