@@ -238,6 +238,25 @@ CREATE INDEX IF NOT EXISTS idx_query_maps_name
   ON query_maps(name);
 "
 
+/// SQL for creating saved explorations table (matches priv/migrations/010_create_saved_explorations.sql).
+pub const create_saved_explorations_sql = "
+CREATE TABLE IF NOT EXISTS saved_explorations (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  graph_state TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  is_public INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_saved_explorations_user ON saved_explorations(user_id);
+CREATE INDEX IF NOT EXISTS idx_saved_explorations_public ON saved_explorations(is_public);
+CREATE INDEX IF NOT EXISTS idx_saved_explorations_created ON saved_explorations(created_at DESC);
+"
+
 /// SQL for creating similarity tables (matches priv/migrations/006_create_similarity_tables.sql).
 pub const create_similarity_tables_sql = "
 CREATE TABLE IF NOT EXISTS legislation_similarities (
@@ -296,6 +315,7 @@ pub fn all_migrations() -> List(#(String, String)) {
     #("007", create_ingestion_jobs_sql),
     #("008", create_topic_taxonomy_sql),
     #("009", create_cross_references_sql),
+    #("010", create_saved_explorations_sql),
   ]
 }
 

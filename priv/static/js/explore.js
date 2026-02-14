@@ -719,6 +719,332 @@
     }, 2500);
   }
 
+  // --- State Serialization ---
+
+  function serializeGraphState() {
+    var nodePositions = {};
+    graphState.nodes.forEach(function (node) {
+      nodePositions[node.id] = {
+        x: node.x,
+        y: node.y,
+        fx: node.fx,
+        fy: node.fy,
+      };
+    });
+
+    var serializedNodes = graphState.nodes.map(function (node) {
+      return {
+        id: node.id,
+        label: node.label,
+        level: node.level,
+        status: node.status,
+        date: node.date,
+        metadata: node.metadata,
+        node_type: node.node_type,
+      };
+    });
+
+    var serializedEdges = graphState.edges.map(function (edge) {
+      return {
+        source: typeof edge.source === "object" ? edge.source.id : edge.source,
+        target: typeof edge.target === "object" ? edge.target.id : edge.target,
+        type: edge.edge_type,
+        weight: edge.weight,
+        metadata: edge.metadata,
+      };
+    });
+
+    var currentTransform = d3.zoomTransform(svg.node());
+
+    return JSON.stringify({
+      nodes: serializedNodes,
+      edges: serializedEdges,
+      nodePositions: nodePositions,
+      selectedNodeId: graphState.selectedNodeId,
+      visibleEdgeTypes: Array.from(graphState.visibleEdgeTypes),
+      depth: graphState.depth,
+      zoom: { k: currentTransform.k, x: currentTransform.x, y: currentTransform.y },
+    });
+  }
+
+  function deserializeGraphState(jsonString) {
+    var data = JSON.parse(jsonString);
+
+    clearGraph();
+
+    // Restore nodes
+    if (data.nodes) {
+      mergeNodes(data.nodes);
+    }
+
+    // Restore positions
+    if (data.nodePositions) {
+      graphState.nodes.forEach(function (node) {
+        var savedPosition = data.nodePositions[node.id];
+        if (savedPosition) {
+          node.x = savedPosition.x;
+          node.y = savedPosition.y;
+          node.fx = savedPosition.fx;
+          node.fy = savedPosition.fy;
+        }
+      });
+    }
+
+    // Restore edges
+    if (data.edges) {
+      mergeEdges(data.edges);
+    }
+
+    computeNodeDegrees();
+
+    // Restore edge type filters
+    if (data.visibleEdgeTypes) {
+      graphState.visibleEdgeTypes = new Set(data.visibleEdgeTypes);
+      var edgeTypes = ["references", "amends", "supersedes", "implements", "delegates", "similar_to"];
+      edgeTypes.forEach(function (edgeType) {
+        var checkbox = document.getElementById("explore-edge-filter-" + edgeType);
+        if (checkbox) {
+          checkbox.checked = graphState.visibleEdgeTypes.has(edgeType);
+        }
+      });
+    }
+
+    // Restore depth
+    if (data.depth) {
+      graphState.depth = data.depth;
+      var depthSelect = document.getElementById("explore-depth-select");
+      if (depthSelect) depthSelect.value = data.depth.toString();
+    }
+
+    // Restore selection
+    graphState.selectedNodeId = data.selectedNodeId || null;
+
+    updateGraph();
+    hideEmptyState();
+
+    // Restore zoom transform
+    if (data.zoom) {
+      var transform = d3.zoomIdentity
+        .translate(data.zoom.x, data.zoom.y)
+        .scale(data.zoom.k);
+      svg.call(zoomBehavior.transform, transform);
+    }
+
+    // Select node if one was selected
+    if (graphState.selectedNodeId) {
+      var selectedNode = graphState.nodeMap.get(graphState.selectedNodeId);
+      if (selectedNode) {
+        populateDetailPanel(selectedNode);
+      }
+    }
+  }
+
+  // --- Exploration API ---
+
+  function saveExploration(title, description, graphStateJson, isPublic) {
+    return fetch("/api/explorations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: title,
+        description: description,
+        graph_state: graphStateJson,
+        is_public: isPublic,
+      }),
+    }).then(handleResponse);
+  }
+
+  function loadExploration(explorationId) {
+    return fetch("/api/explorations/" + encodeURIComponent(explorationId)).then(
+      handleResponse
+    );
+  }
+
+  function listExplorations() {
+    return fetch("/api/explorations").then(handleResponse);
+  }
+
+  function deleteExploration(explorationId) {
+    return fetch("/api/explorations/" + encodeURIComponent(explorationId), {
+      method: "DELETE",
+    }).then(function (response) {
+      if (!response.ok && response.status !== 204) {
+        throw new Error("API error: " + response.status);
+      }
+      return null;
+    });
+  }
+
+  // --- Save/Load UI Handlers ---
+
+  function onSaveClick() {
+    var dialog = document.getElementById("explore-save-dialog");
+    if (dialog) {
+      dialog.classList.toggle("explore-save-dialog-visible");
+      // Close list panel if open
+      var listPanel = document.getElementById("explore-list-panel");
+      if (listPanel) listPanel.classList.remove("explore-list-panel-visible");
+    }
+  }
+
+  function onSaveConfirm() {
+    var titleInput = document.getElementById("explore-save-title");
+    var descInput = document.getElementById("explore-save-description");
+    var publicCheckbox = document.getElementById("explore-save-public");
+
+    var title = titleInput ? titleInput.value.trim() : "";
+    var description = descInput ? descInput.value.trim() : "";
+    var isPublic = publicCheckbox ? publicCheckbox.checked : false;
+
+    if (!title) {
+      showNotification("Title is required");
+      return;
+    }
+
+    if (graphState.nodes.length === 0) {
+      showNotification("Nothing to save — explore some legislation first");
+      return;
+    }
+
+    var graphStateJson = serializeGraphState();
+    showNotification("Saving...");
+
+    saveExploration(title, description, graphStateJson, isPublic)
+      .then(function (result) {
+        showNotification("Saved: " + result.title);
+        // Close dialog and clear inputs
+        var dialog = document.getElementById("explore-save-dialog");
+        if (dialog) dialog.classList.remove("explore-save-dialog-visible");
+        if (titleInput) titleInput.value = "";
+        if (descInput) descInput.value = "";
+        if (publicCheckbox) publicCheckbox.checked = false;
+      })
+      .catch(function (error) {
+        showNotification("Save error: " + error.message);
+      });
+  }
+
+  function onSaveCancel() {
+    var dialog = document.getElementById("explore-save-dialog");
+    if (dialog) dialog.classList.remove("explore-save-dialog-visible");
+  }
+
+  function onLoadClick() {
+    var listPanel = document.getElementById("explore-list-panel");
+    if (!listPanel) return;
+
+    // Close save dialog if open
+    var dialog = document.getElementById("explore-save-dialog");
+    if (dialog) dialog.classList.remove("explore-save-dialog-visible");
+
+    if (listPanel.classList.contains("explore-list-panel-visible")) {
+      listPanel.classList.remove("explore-list-panel-visible");
+      return;
+    }
+
+    listPanel.innerHTML = '<p class="explore-list-empty">Loading...</p>';
+    listPanel.classList.add("explore-list-panel-visible");
+
+    listExplorations()
+      .then(function (result) {
+        renderExplorationsList(listPanel, result.explorations || []);
+      })
+      .catch(function (error) {
+        listPanel.innerHTML =
+          '<p class="explore-list-empty">Error loading explorations</p>';
+      });
+  }
+
+  function renderExplorationsList(panel, explorations) {
+    if (explorations.length === 0) {
+      panel.innerHTML =
+        '<h3 class="explore-list-title">Saved Explorations</h3>' +
+        '<p class="explore-list-empty">No saved explorations yet.</p>';
+      return;
+    }
+
+    var html = '<h3 class="explore-list-title">Saved Explorations</h3>';
+    explorations.forEach(function (exploration) {
+      html += '<div class="explore-list-item">';
+      html +=
+        '<div class="explore-list-item-title">' +
+        escapeHtml(exploration.title) +
+        "</div>";
+      if (exploration.description) {
+        html +=
+          '<div class="explore-list-item-desc">' +
+          escapeHtml(exploration.description) +
+          "</div>";
+      }
+      html += '<div class="explore-list-item-meta">';
+      html += exploration.is_public ? "Public" : "Private";
+      html += "</div>";
+      html += '<div class="explore-list-item-actions">';
+      html +=
+        '<button class="explore-action-button" onclick="PhilstubsExplorer.loadSaved(\'' +
+        escapeAttr(exploration.id) +
+        "')\">Load</button>";
+      html +=
+        '<button class="explore-action-button explore-action-secondary" onclick="PhilstubsExplorer.shareExploration(\'' +
+        escapeAttr(exploration.id) +
+        "')\">Share</button>";
+      html +=
+        '<button class="explore-action-button explore-action-danger" onclick="PhilstubsExplorer.deleteSaved(\'' +
+        escapeAttr(exploration.id) +
+        "')\">Delete</button>";
+      html += "</div></div>";
+    });
+    panel.innerHTML = html;
+  }
+
+  function loadSavedExploration(explorationId) {
+    showNotification("Loading exploration...");
+    loadExploration(explorationId)
+      .then(function (exploration) {
+        deserializeGraphState(exploration.graph_state);
+        showNotification("Loaded: " + exploration.title);
+        // Update URL without reload
+        var newUrl =
+          window.location.pathname + "?state=" + encodeURIComponent(explorationId);
+        window.history.replaceState(null, "", newUrl);
+        // Close list panel
+        var listPanel = document.getElementById("explore-list-panel");
+        if (listPanel) listPanel.classList.remove("explore-list-panel-visible");
+      })
+      .catch(function (error) {
+        showNotification("Load error: " + error.message);
+      });
+  }
+
+  function shareExploration(explorationId) {
+    var shareUrl =
+      window.location.origin + "/explore?state=" + encodeURIComponent(explorationId);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl).then(function () {
+        showNotification("Link copied to clipboard");
+      });
+    } else {
+      showNotification("Share URL: " + shareUrl);
+    }
+  }
+
+  function deleteSavedExploration(explorationId) {
+    if (!confirm("Delete this exploration?")) return;
+
+    showNotification("Deleting...");
+    deleteExploration(explorationId)
+      .then(function () {
+        showNotification("Exploration deleted");
+        // Refresh the list
+        onLoadClick();
+        // Re-open it
+        setTimeout(onLoadClick, 100);
+      })
+      .catch(function (error) {
+        showNotification("Delete error: " + error.message);
+      });
+  }
+
   // --- Empty State ---
 
   function showEmptyState() {
@@ -797,6 +1123,19 @@
     var zoomResetBtn = document.getElementById("explore-zoom-reset");
     if (zoomResetBtn) zoomResetBtn.addEventListener("click", zoomReset);
 
+    // Save/load buttons
+    var saveButton = document.getElementById("explore-save-button");
+    if (saveButton) saveButton.addEventListener("click", onSaveClick);
+
+    var loadButton = document.getElementById("explore-load-button");
+    if (loadButton) loadButton.addEventListener("click", onLoadClick);
+
+    var saveConfirmBtn = document.getElementById("explore-save-confirm");
+    if (saveConfirmBtn) saveConfirmBtn.addEventListener("click", onSaveConfirm);
+
+    var saveCancelBtn = document.getElementById("explore-save-cancel");
+    if (saveCancelBtn) saveCancelBtn.addEventListener("click", onSaveCancel);
+
     // Click on SVG background to deselect
     svg.on("click", function () {
       graphState.selectedNodeId = null;
@@ -816,6 +1155,8 @@
 
     if (options && options.initialNodeId) {
       loadNodeAndCenter(options.initialNodeId);
+    } else if (options && options.initialExplorationId) {
+      loadSavedExploration(options.initialExplorationId);
     } else {
       showEmptyState();
     }
@@ -826,5 +1167,8 @@
     init: init,
     expand: expandNode,
     loadNode: loadNodeAndCenter,
+    loadSaved: loadSavedExploration,
+    shareExploration: shareExploration,
+    deleteSaved: deleteSavedExploration,
   };
 })();

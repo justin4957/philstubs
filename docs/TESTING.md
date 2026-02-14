@@ -886,6 +886,50 @@ Tests live in `test/` and follow the gleeunit convention:
 - `explore_page_contains_legend_test` — Color legend with Federal, State, County, Municipal labels
 - `explore_page_navigation_link_test` — Explore link present in navigation bar
 
+### Exploration Repository Tests (`test/philstubs/data/exploration_repo_test.gleam`)
+
+**CRUD Operations** (6 tests):
+- `insert_and_get_by_id_test` — Insert saved exploration and retrieve, verify all fields including is_public
+- `get_by_id_not_found_test` — Query for nonexistent ID returns `Ok(None)`
+- `list_by_user_test` — Insert explorations for two users, verify filtering by user_id
+- `list_public_test` — Insert public and private explorations, verify only public ones returned
+- `update_test` — Update title, description, graph_state, is_public; verify changes
+- `delete_test` — Insert, delete, verify removed
+
+### Exploration Handler Tests (`test/philstubs/web/exploration_handler_test.gleam`)
+
+**Create API** (4 tests):
+- `create_exploration_returns_201_test` — POST /api/explorations with valid JSON returns 201 with created exploration
+- `create_exploration_unauthenticated_returns_401_test` — POST without auth returns 401
+- `create_exploration_empty_title_returns_400_test` — POST with empty title returns 400 validation error
+- `create_exploration_empty_graph_state_returns_400_test` — POST with empty graph_state returns 400
+
+**List API** (3 tests):
+- `list_explorations_authenticated_returns_own_test` — GET /api/explorations returns 200 with explorations array for authenticated user
+- `list_explorations_public_filter_test` — GET /api/explorations?public=true returns only public explorations
+- `list_explorations_unauthenticated_returns_public_test` — Unauthenticated GET returns public explorations
+
+**Get API** (4 tests):
+- `get_public_exploration_returns_200_test` — Public exploration accessible by anyone (200)
+- `get_private_exploration_owner_returns_200_test` — Private exploration accessible by owner (200)
+- `get_private_exploration_non_owner_returns_403_test` — Private exploration returns 403 for non-owner
+- `get_exploration_not_found_returns_404_test` — Nonexistent exploration returns 404
+
+**Update API** (3 tests):
+- `update_exploration_owner_returns_200_test` — PUT by owner returns 200 with updated data
+- `update_exploration_non_owner_returns_403_test` — PUT by non-owner returns 403
+- `update_exploration_unauthenticated_returns_401_test` — PUT without auth returns 401
+
+**Delete API** (4 tests):
+- `delete_exploration_owner_returns_204_test` — DELETE by owner returns 204, exploration removed
+- `delete_exploration_non_owner_returns_403_test` — DELETE by non-owner returns 403
+- `delete_exploration_unauthenticated_returns_401_test` — DELETE without auth returns 401
+- `delete_exploration_not_found_returns_404_test` — DELETE nonexistent returns 404
+
+**Explore Page** (2 tests):
+- `explore_page_with_state_param_test` — GET /explore?state=expl-abc123 renders page with exploration ID in init script
+- `explore_page_without_state_param_test` — GET /explore renders page with PhilstubsExplorer.init({})
+
 ### Topic Handler Tests (`test/philstubs/web/topic_handler_test.gleam`)
 
 **Taxonomy API** (2 tests):
@@ -1252,7 +1296,7 @@ pub fn my_dialogue_test() {
 
 Gleam currently has no native code coverage tooling. The Erlang `cover` module exists on the BEAM but reports line numbers against generated `.erl` files, which do not map back to Gleam source lines, making the output impractical to use.
 
-**Current approach**: Comprehensive testing (708+ tests) with CI enforcement via `gleam test` in the GitHub Actions workflow. Test coverage spans pure domain logic, database operations, HTTP handlers, ingestion pipelines, cross-reference extraction, impact analysis, navigation graph exploration, interactive explorer UI, and interaction flow documentation (dialogue tests).
+**Current approach**: Comprehensive testing (734+ tests) with CI enforcement via `gleam test` in the GitHub Actions workflow. Test coverage spans pure domain logic, database operations, HTTP handlers, ingestion pipelines, cross-reference extraction, impact analysis, navigation graph exploration, interactive explorer UI, saved explorations CRUD, and interaction flow documentation (dialogue tests).
 
 **Future**: The Gleam ecosystem may develop coverage tooling as the language matures. Monitor the [Gleam GitHub discussions](https://github.com/gleam-lang/gleam/discussions) and community tools for coverage support.
 
@@ -1521,6 +1565,30 @@ curl http://localhost:8000/api/explore/node/nonexistent
 
 curl http://localhost:8000/api/explore/cluster/nonexistent-topic
 # Expect: 404 with {"error":"...","code":"NOT_FOUND"}
+
+# Saved Explorations API:
+curl http://localhost:8000/api/explorations
+# Expect: JSON with explorations array (public explorations for unauthenticated)
+
+curl -X POST http://localhost:8000/api/explorations \
+  -H "Content-Type: application/json" \
+  -d '{"title":"My Graph","graph_state":"{\"nodes\":[],\"edges\":[]}","description":"Test exploration","is_public":false}'
+# Expect: 201 with created exploration JSON (requires auth)
+
+curl http://localhost:8000/api/explorations/EXPLORATION_ID
+# Expect: JSON with exploration details (public or owner only)
+
+curl -X PUT http://localhost:8000/api/explorations/EXPLORATION_ID \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Updated Graph","graph_state":"{\"nodes\":[],\"edges\":[]}","description":"Updated","is_public":true}'
+# Expect: 200 with updated exploration JSON (owner only)
+
+curl -X DELETE http://localhost:8000/api/explorations/EXPLORATION_ID
+# Expect: 204 No Content (owner only)
+
+# Explore page with saved state:
+curl "http://localhost:8000/explore?state=EXPLORATION_ID"
+# Expect: HTML page that auto-loads the saved exploration on initialization
 
 # Similarity API:
 curl http://localhost:8000/api/legislation/LEGISLATION_ID/similar
