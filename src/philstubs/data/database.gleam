@@ -1,17 +1,28 @@
+import envoy
+import gleam/result
 import philstubs/data/migration
 import sqlight
 
 /// The default database path for local development.
 const default_database_path = "philstubs_dev.sqlite"
 
+/// Resolve the database path from the DATABASE_PATH environment variable,
+/// falling back to the default development path.
+pub fn resolve_database_path() -> String {
+  envoy.get("DATABASE_PATH")
+  |> result.unwrap(default_database_path)
+}
+
 /// Execute a function with a database connection. The connection is
 /// automatically closed when the function completes.
+/// Reads DATABASE_PATH from the environment, falling back to the default.
 ///
 /// Usage:
 ///   use connection <- database.with_connection()
 ///   sqlight.exec("SELECT 1", on: connection)
 pub fn with_connection(next: fn(sqlight.Connection) -> result) -> result {
-  sqlight.with_connection(default_database_path, next)
+  let database_path = resolve_database_path()
+  sqlight.with_connection(database_path, next)
 }
 
 /// Execute a function with a connection to a specific database path.

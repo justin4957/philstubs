@@ -18,7 +18,8 @@ const default_port = 8000
 pub fn main() {
   wisp.configure_logger()
 
-  let secret_key_base = wisp.random_string(64)
+  let secret_key_base = resolve_secret_key_base()
+  let application_port = resolve_port()
   let static_directory = static_directory()
 
   let github_client_id = envoy.get("GITHUB_CLIENT_ID") |> result.unwrap("")
@@ -52,15 +53,38 @@ pub fn main() {
   let assert Ok(_) =
     wisp_mist.handler(request_handler, secret_key_base)
     |> mist.new
-    |> mist.port(default_port)
+    |> mist.port(application_port)
     |> mist.start
 
   io.println(
     "PHILSTUBS server started on http://localhost:"
-    <> int.to_string(default_port),
+    <> int.to_string(application_port),
   )
 
   process.sleep_forever()
+}
+
+/// Resolve the server port from the PORT environment variable,
+/// falling back to the default port (8000).
+fn resolve_port() -> Int {
+  envoy.get("PORT")
+  |> result.try(int.parse)
+  |> result.unwrap(default_port)
+}
+
+/// Resolve the secret key base from the SECRET_KEY_BASE environment variable.
+/// If unset, generates a random key and logs a warning.
+fn resolve_secret_key_base() -> String {
+  case envoy.get("SECRET_KEY_BASE") {
+    Ok(key) -> key
+    Error(_) -> {
+      io.println(
+        "WARNING: SECRET_KEY_BASE not set, generating random key. "
+        <> "Sessions will not persist across restarts.",
+      )
+      wisp.random_string(64)
+    }
+  }
 }
 
 fn static_directory() -> String {
