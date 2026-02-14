@@ -32,17 +32,68 @@ PHILSTUBS organizes legislation across the US democratic hierarchy:
 | **County** | County ordinances, resolutions |
 | **Municipal** | City ordinances, local bylaws, town resolutions |
 
-## Getting Started
+## Quick Start
+
+### Prerequisites
+
+- [Gleam](https://gleam.run/getting-started/installing/) (v1.0+)
+- [Erlang/OTP](https://www.erlang.org/downloads) (v26+)
+
+### Setup
 
 ```sh
+# Clone the repo
+git clone https://github.com/justin4957/philstubs.git
+cd philstubs
+
 # Install dependencies
 gleam deps download
 
-# Run the development server
-gleam run
-
-# Run tests
+# Run tests to verify everything works
 gleam test
+
+# Start the dev server
+gleam run
+```
+
+The server starts at **http://localhost:8000**. Visit it in your browser to see the landing page.
+
+### Try it out
+
+```sh
+# Health check
+curl http://localhost:8000/health
+
+# Browse the landing page
+open http://localhost:8000
+
+# Search legislation
+curl "http://localhost:8000/api/search?q=environment"
+
+# List legislation via REST API
+curl http://localhost:8000/api/legislation
+
+# Browse templates
+curl http://localhost:8000/api/templates
+```
+
+### Optional: Data Ingestion
+
+PHILSTUBS can ingest live legislation from external sources. Set the relevant API keys to enable ingestion:
+
+| Source | Env Var | Level |
+|--------|---------|-------|
+| [Congress.gov](https://api.congress.gov/) | `CONGRESS_API_KEY` | Federal |
+| [Open States](https://v3.openstates.org/) | `PLURAL_POLICY_KEY` | State |
+| [Legistar](https://webapi.legistar.com/) | None (public) | County/Municipal |
+
+### Optional: GitHub OAuth
+
+To enable user authentication and template ownership, set:
+
+```sh
+export GITHUB_CLIENT_ID=your_client_id
+export GITHUB_CLIENT_SECRET=your_client_secret
 ```
 
 ## Contributing
