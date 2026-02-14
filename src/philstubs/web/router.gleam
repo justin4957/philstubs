@@ -1,5 +1,6 @@
 import gleam/http
 import gleam/json
+import gleam/list
 import gleam/option.{None, Some}
 import lustre/element
 import philstubs/core/user
@@ -13,6 +14,7 @@ import philstubs/search/search_query
 import philstubs/search/search_repo
 import philstubs/search/search_results
 import philstubs/ui/api_docs_page
+import philstubs/ui/explore_page
 import philstubs/ui/ingestion_dashboard_page
 import philstubs/ui/pages
 import philstubs/ui/search_page
@@ -85,6 +87,8 @@ pub fn handle_request(
     // --- Admin routes ---
     ["admin", "ingestion"] ->
       handle_ingestion_dashboard(request, enriched_context)
+    // --- Explore page ---
+    ["explore"] -> handle_explore_page(request)
     // --- API routes ---
     ["api", ..api_segments] ->
       route_api(request, api_segments, enriched_context)
@@ -557,6 +561,19 @@ fn handle_api_explore_cluster(
 fn handle_api_docs_page(request: Request) -> Response {
   use <- wisp.require_method(request, http.Get)
   api_docs_page.api_docs_page()
+  |> element.to_document_string
+  |> wisp.html_response(200)
+}
+
+fn handle_explore_page(request: Request) -> Response {
+  use <- wisp.require_method(request, http.Get)
+
+  let initial_node_id =
+    wisp.get_query(request)
+    |> list.key_find("id")
+    |> option.from_result
+
+  explore_page.explore_page(initial_node_id)
   |> element.to_document_string
   |> wisp.html_response(200)
 }
