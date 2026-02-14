@@ -56,12 +56,14 @@ pub fn handle_browse_state(
 }
 
 /// Handle GET /browse/topics — render the topics listing page.
+/// Falls back to flat topic list when no taxonomy is available.
 pub fn handle_browse_topics(db_connection: sqlight.Connection) -> Response {
-  case browse_repo.count_topics(db_connection) {
-    Ok(topic_counts) ->
-      browse_page.browse_topics_page(topic_counts)
-      |> element.to_document_string
-      |> wisp.html_response(200)
-    Error(_) -> wisp.internal_server_error()
+  let flat_topic_counts = case browse_repo.count_topics(db_connection) {
+    Ok(counts) -> counts
+    Error(_) -> []
   }
+
+  browse_page.browse_topics_page([], flat_topic_counts)
+  |> element.to_document_string
+  |> wisp.html_response(200)
 }

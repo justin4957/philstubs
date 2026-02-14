@@ -2,12 +2,16 @@ import envoy
 import gleam/erlang/process
 import gleam/int
 import gleam/io
-import gleam/option.{None}
+import gleam/option.{None, Some}
 import gleam/result
 import mist
+import philstubs/core/ingestion_job
 import philstubs/data/database
 import philstubs/data/legislation_repo
 import philstubs/data/seed
+import philstubs/data/topic_seed
+import philstubs/ingestion/ingestion_runner
+import philstubs/ingestion/scheduler_actor
 import philstubs/web/context.{Context}
 import philstubs/web/router
 import wisp
@@ -39,6 +43,30 @@ pub fn main() {
     _ -> Nil
   }
 
+  // Seed the topic taxonomy (idempotent — safe on every startup)
+  case topic_seed.seed_topic_taxonomy(connection) {
+    Ok(topic_count) ->
+      io.println(
+        "Topic taxonomy ready: " <> int.to_string(topic_count) <> " topics",
+      )
+    Error(_) -> io.println("WARNING: Failed to seed topic taxonomy")
+  }
+
+  // Start the ingestion scheduler actor
+  let schedule_config = ingestion_job.resolve_schedule_config()
+  let scheduler_subject = case
+    scheduler_actor.start(schedule_config, ingestion_runner.run_source)
+  {
+    Ok(started) -> {
+      io.println("Ingestion scheduler started successfully")
+      Some(started.data)
+    }
+    Error(_) -> {
+      io.println("WARNING: Failed to start ingestion scheduler")
+      None
+    }
+  }
+
   let application_context =
     Context(
       static_directory: static_directory,
@@ -46,6 +74,7 @@ pub fn main() {
       current_user: None,
       github_client_id: github_client_id,
       github_client_secret: github_client_secret,
+      scheduler: scheduler_subject,
     )
 
   let request_handler = router.handle_request(_, application_context)

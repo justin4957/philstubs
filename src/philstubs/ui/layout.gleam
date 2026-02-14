@@ -66,6 +66,7 @@ pub fn page_layout_with_user(
           html.a([attribute.href("/browse")], [html.text("Browse")]),
           html.a([attribute.href("/search")], [html.text("Search")]),
           html.a([attribute.href("/templates")], [html.text("Templates")]),
+          html.a([attribute.href("/admin/ingestion")], [html.text("Admin")]),
           html.span([attribute.class("auth-nav")], auth_nav_items),
         ]),
       ]),

@@ -33,6 +33,34 @@ pub fn empty_form() -> TemplateFormData {
   )
 }
 
+/// Render the template upload form page with topic autocomplete suggestions.
+/// Optionally displays validation errors and repopulates fields from
+/// previous submission data.
+pub fn template_form_page_with_topics(
+  form_data: TemplateFormData,
+  validation_error: Option(String),
+  known_topics: List(String),
+) -> Element(Nil) {
+  layout.page_layout("Upload Template — PHILSTUBS", [
+    html.div([attribute.class("template-form-container")], [
+      html.h1([], [html.text("Upload a Legislation Template")]),
+      html.p([attribute.class("form-description")], [
+        html.text(
+          "Share model legislation that others can search, browse, and adapt for their jurisdiction.",
+        ),
+      ]),
+      case validation_error {
+        Some(error_message) ->
+          html.div([attribute.class("form-error")], [
+            html.text(error_message),
+          ])
+        None -> element.none()
+      },
+      template_form_with_datalist(form_data, known_topics),
+    ]),
+  ])
+}
+
 /// Render the template upload form page. Optionally displays validation
 /// errors and repopulates fields from previous submission data.
 pub fn template_form_page(
@@ -57,6 +85,89 @@ pub fn template_form_page(
       template_form(form_data),
     ]),
   ])
+}
+
+fn template_form_with_datalist(
+  form_data: TemplateFormData,
+  known_topics: List(String),
+) -> Element(Nil) {
+  html.form(
+    [
+      attribute.class("template-form"),
+      attribute.method("POST"),
+      attribute.action("/templates"),
+    ],
+    [
+      form_field("title", "Title", "text", form_data.title, True, [
+        attribute.placeholder("e.g., Model Affordable Housing Ordinance"),
+      ]),
+      form_textarea(
+        "description",
+        "Description",
+        form_data.description,
+        True,
+        "Briefly describe what this template covers and who it's intended for.",
+        3,
+      ),
+      form_textarea(
+        "body",
+        "Template Body",
+        form_data.body,
+        True,
+        "Paste the full text of the model legislation here.",
+        12,
+      ),
+      form_select(
+        "suggested_level",
+        "Suggested Government Level",
+        form_data.suggested_level,
+        [
+          #("federal", "Federal"),
+          #("state", "State"),
+          #("county", "County"),
+          #("municipal", "Municipal"),
+        ],
+      ),
+      form_select(
+        "suggested_type",
+        "Legislation Type",
+        form_data.suggested_type,
+        [
+          #("bill", "Bill"),
+          #("resolution", "Resolution"),
+          #("ordinance", "Ordinance"),
+          #("bylaw", "Bylaw"),
+          #("amendment", "Amendment"),
+          #("regulation", "Regulation"),
+          #("executive_order", "Executive Order"),
+        ],
+      ),
+      form_field("author", "Author", "text", form_data.author, True, [
+        attribute.placeholder("Your name or organization"),
+      ]),
+      form_field("topics", "Topics", "text", form_data.topics, False, [
+        attribute.placeholder("housing, zoning, equity (comma-separated)"),
+        attribute.attribute("list", "topic-suggestions"),
+      ]),
+      // Datalist for browser-native autocomplete
+      element.element(
+        "datalist",
+        [attribute.id("topic-suggestions")],
+        list.map(known_topics, fn(topic_name) {
+          html.option([attribute.value(topic_name)], "")
+        }),
+      ),
+      html.div([attribute.class("form-actions")], [
+        html.button(
+          [attribute.type_("submit"), attribute.class("submit-button")],
+          [html.text("Upload Template")],
+        ),
+        html.a([attribute.href("/templates"), attribute.class("cancel-link")], [
+          html.text("Cancel"),
+        ]),
+      ]),
+    ],
+  )
 }
 
 fn template_form(form_data: TemplateFormData) -> Element(Nil) {

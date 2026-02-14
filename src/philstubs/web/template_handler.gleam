@@ -13,6 +13,7 @@ import philstubs/core/legislation_template.{
 import philstubs/core/legislation_type.{type LegislationType}
 import philstubs/data/similarity_repo
 import philstubs/data/template_repo
+import philstubs/data/topic_repo
 import philstubs/ui/template_detail_page
 import philstubs/ui/template_form_page
 import philstubs/ui/templates_page
@@ -47,9 +48,18 @@ pub fn handle_templates_list(
   }
 }
 
-/// Handle GET /templates/new — show the upload form.
-pub fn handle_template_new_form() -> Response {
-  template_form_page.template_form_page(template_form_page.empty_form(), None)
+/// Handle GET /templates/new — show the upload form with topic autocomplete.
+pub fn handle_template_new_form(db_connection: sqlight.Connection) -> Response {
+  let known_topics = case topic_repo.list_all_topic_names(db_connection) {
+    Ok(topic_names) -> topic_names
+    Error(_) -> []
+  }
+
+  template_form_page.template_form_page_with_topics(
+    template_form_page.empty_form(),
+    None,
+    known_topics,
+  )
   |> element.to_document_string
   |> wisp.html_response(200)
 }

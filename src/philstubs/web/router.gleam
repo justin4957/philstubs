@@ -4,12 +4,15 @@ import gleam/option.{None, Some}
 import lustre/element
 import philstubs/core/user
 import philstubs/data/browse_repo
+import philstubs/data/ingestion_job_repo
 import philstubs/data/legislation_repo
 import philstubs/data/stats_repo
 import philstubs/data/template_repo
+import philstubs/ingestion/scheduler_actor
 import philstubs/search/search_query
 import philstubs/search/search_repo
 import philstubs/search/search_results
+import philstubs/ui/ingestion_dashboard_page
 import philstubs/ui/pages
 import philstubs/ui/search_page
 import philstubs/web/api_error
@@ -18,10 +21,12 @@ import philstubs/web/api_middleware
 import philstubs/web/auth_handler
 import philstubs/web/browse_handler
 import philstubs/web/context.{type Context}
+import philstubs/web/ingestion_handler
 import philstubs/web/legislation_handler
 import philstubs/web/middleware
 import philstubs/web/similarity_handler
 import philstubs/web/template_handler
+import philstubs/web/topic_handler
 import sqlight
 import wisp.{type Request, type Response}
 
@@ -46,6 +51,8 @@ pub fn handle_request(
     ["browse", "state", state_code] ->
       handle_browse_state(request, state_code, db_connection)
     ["browse", "topics"] -> handle_browse_topics(request, db_connection)
+    ["browse", "topics", topic_slug] ->
+      handle_browse_topic_detail(request, topic_slug, db_connection)
     ["search"] -> handle_search_page(request, enriched_context)
     ["login"] -> auth_handler.handle_login(request, enriched_context)
     ["auth", "github", "callback"] ->
@@ -68,6 +75,9 @@ pub fn handle_request(
       handle_template_download(request, template_id, db_connection)
     ["templates", template_id] ->
       handle_template_by_id(request, template_id, enriched_context)
+    // --- Admin routes ---
+    ["admin", "ingestion"] ->
+      handle_ingestion_dashboard(request, enriched_context)
     // --- API routes ---
     ["api", ..api_segments] ->
       route_api(request, api_segments, enriched_context)
@@ -177,8 +187,30 @@ fn route_api(
         ["levels", level, "jurisdictions"] ->
           handle_api_level_jurisdictions(request, level, db_connection)
         ["topics"] -> handle_api_topics_list(request, db_connection)
+        ["topics", "taxonomy"] ->
+          topic_handler.handle_taxonomy(request, db_connection)
+        ["topics", "search"] ->
+          topic_handler.handle_topic_search(request, db_connection)
+        ["topics", "auto-tag"] ->
+          topic_handler.handle_auto_tag(request, db_connection)
+        ["topics", topic_slug, "legislation"] ->
+          topic_handler.handle_topic_legislation(
+            request,
+            topic_slug,
+            db_connection,
+          )
+        ["topics", topic_slug] ->
+          topic_handler.handle_topic_detail(request, topic_slug, db_connection)
         ["similarity", "compute"] ->
           handle_api_compute_similarities(request, db_connection)
+        ["ingestion", "status"] ->
+          ingestion_handler.handle_status(request, application_context)
+        ["ingestion", "jobs"] ->
+          ingestion_handler.handle_jobs(request, db_connection)
+        ["ingestion", "jobs", job_id] ->
+          ingestion_handler.handle_job_detail(request, job_id, db_connection)
+        ["ingestion", "trigger"] ->
+          ingestion_handler.handle_trigger(request, application_context)
         _ -> api_error.not_found("Endpoint")
       }
       api_middleware.apply_cors(response)
@@ -363,7 +395,16 @@ fn handle_browse_topics(
   db_connection: sqlight.Connection,
 ) -> Response {
   use <- wisp.require_method(request, http.Get)
-  browse_handler.handle_browse_topics(db_connection)
+  topic_handler.handle_browse_topics(db_connection)
+}
+
+fn handle_browse_topic_detail(
+  request: Request,
+  topic_slug: String,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  topic_handler.handle_browse_topic_detail(topic_slug, db_connection)
 }
 
 // --- Diff view ---
@@ -471,7 +512,10 @@ fn handle_template_new(
   use <- wisp.require_method(request, http.Get)
   case application_context.current_user {
     None -> wisp.redirect("/login")
-    Some(_) -> template_handler.handle_template_new_form()
+    Some(_) ->
+      template_handler.handle_template_new_form(
+        application_context.db_connection,
+      )
   }
 }
 
@@ -512,6 +556,35 @@ fn handle_template_download(
 ) -> Response {
   use <- wisp.require_method(request, http.Get)
   template_handler.handle_template_download(request, template_id, db_connection)
+}
+
+// --- Admin routes ---
+
+fn handle_ingestion_dashboard(
+  request: Request,
+  application_context: Context,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+
+  let db_connection = application_context.db_connection
+
+  let recent_jobs = case ingestion_job_repo.list_recent(db_connection, 20) {
+    Ok(jobs) -> jobs
+    Error(_) -> []
+  }
+
+  let scheduler_status = case application_context.scheduler {
+    Some(scheduler_subject) ->
+      Some(scheduler_actor.get_status(scheduler_subject))
+    None -> None
+  }
+
+  ingestion_dashboard_page.ingestion_dashboard_page(
+    scheduler_status,
+    recent_jobs,
+  )
+  |> element.to_document_string
+  |> wisp.html_response(200)
 }
 
 // --- Authorization helpers ---

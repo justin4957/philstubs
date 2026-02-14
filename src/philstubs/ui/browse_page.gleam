@@ -3,6 +3,7 @@ import gleam/list
 import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html
+import philstubs/core/topic.{type TopicTreeNode}
 import philstubs/ui/layout
 
 /// Root browse page showing all government levels as cards with counts.
@@ -154,8 +155,11 @@ pub fn browse_state_page(
   ])
 }
 
-/// Topics page showing all topics with legislation counts.
-pub fn browse_topics_page(topic_counts: List(#(String, Int))) -> Element(Nil) {
+/// Topics page showing hierarchical taxonomy or flat topic list fallback.
+pub fn browse_topics_page(
+  topic_tree: List(TopicTreeNode),
+  flat_topic_counts: List(#(String, Int)),
+) -> Element(Nil) {
   layout.page_layout("Browse by Topic — PHILSTUBS", [
     html.div([attribute.class("browse-container")], [
       breadcrumb_nav([#("Browse", "/browse"), #("Topics", "/browse/topics")]),
@@ -165,22 +169,74 @@ pub fn browse_topics_page(topic_counts: List(#(String, Int))) -> Element(Nil) {
           "Explore legislation organized by policy area across all government levels.",
         ),
       ]),
-      case topic_counts {
+      case topic_tree {
         [] ->
-          html.p([attribute.class("browse-empty")], [
-            html.text("No topics available yet."),
-          ])
-        counts ->
+          // Fallback to flat topic list when taxonomy is empty
+          case flat_topic_counts {
+            [] ->
+              html.p([attribute.class("browse-empty")], [
+                html.text("No topics available yet."),
+              ])
+            counts ->
+              html.div(
+                [attribute.class("browse-list")],
+                list.map(counts, fn(item) {
+                  let #(topic_name, count) = item
+                  jurisdiction_list_item(
+                    topic_name,
+                    count,
+                    "/search?q=" <> topic_name,
+                  )
+                }),
+              )
+          }
+        tree_nodes ->
           html.div(
-            [attribute.class("browse-list")],
-            list.map(counts, fn(item) {
-              let #(topic, count) = item
-              jurisdiction_list_item(topic, count, "/search?q=" <> topic)
-            }),
+            [attribute.class("topic-tree")],
+            list.map(tree_nodes, render_topic_parent_card),
           )
       },
     ]),
   ])
+}
+
+/// Render a parent topic card with expandable children.
+fn render_topic_parent_card(node: TopicTreeNode) -> Element(Nil) {
+  let parent_slug = node.topic.slug
+  html.a(
+    [
+      attribute.href("/browse/topics/" <> parent_slug),
+      attribute.class("topic-parent-card"),
+    ],
+    [
+      html.div([attribute.class("topic-parent-header")], [
+        html.h3([], [html.text(node.topic.name)]),
+        html.span([attribute.class("browse-item-count")], [
+          html.text(int.to_string(node.legislation_count)),
+        ]),
+      ]),
+      html.p([attribute.class("topic-parent-description")], [
+        html.text(node.topic.description),
+      ]),
+      case node.children {
+        [] -> element.none()
+        children ->
+          html.ul(
+            [attribute.class("topic-children")],
+            list.map(children, fn(child_with_count) {
+              html.li([], [
+                html.span([attribute.class("topic-child-name")], [
+                  html.text(child_with_count.topic.name),
+                ]),
+                html.span([attribute.class("topic-child-count")], [
+                  html.text(int.to_string(child_with_count.legislation_count)),
+                ]),
+              ])
+            }),
+          )
+      },
+    ],
+  )
 }
 
 // --- Shared components ---
