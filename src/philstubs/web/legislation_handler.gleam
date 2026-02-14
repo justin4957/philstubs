@@ -5,8 +5,11 @@ import gleam/result
 import gleam/string
 import lustre/element
 import philstubs/core/government_level
+import philstubs/core/impact_analyzer
+import philstubs/core/impact_types
 import philstubs/core/legislation.{type Legislation}
 import philstubs/core/legislation_type
+import philstubs/data/impact_repo
 import philstubs/data/legislation_repo
 import philstubs/data/similarity_repo
 import philstubs/ui/legislation_detail_page
@@ -37,11 +40,14 @@ pub fn handle_legislation_detail(
         similarity_repo.adoption_timeline(db_connection, legislation_id, 0.3)
         |> result.unwrap([])
 
+      let impact_nodes = load_impact_nodes(db_connection, legislation_id)
+
       legislation_detail_page.legislation_detail_page(
         record,
         related_legislation,
         similar_legislation,
         adoption_timeline,
+        impact_nodes,
       )
       |> element.to_document_string
       |> wisp.html_response(200)
@@ -196,6 +202,29 @@ fn format_as_markdown(record: Legislation) -> String {
     ]),
     "\n",
   )
+}
+
+fn load_impact_nodes(
+  db_connection: sqlight.Connection,
+  legislation_id: String,
+) -> List(impact_types.ImpactNode) {
+  case
+    impact_repo.load_dependency_graph(db_connection),
+    impact_repo.load_legislation_metadata(db_connection)
+  {
+    Ok(graph), Ok(metadata) -> {
+      let impact_result =
+        impact_analyzer.analyze_impact(
+          graph,
+          metadata,
+          legislation_id,
+          impact_types.Both,
+          3,
+        )
+      impact_result.nodes
+    }
+    _, _ -> []
+  }
 }
 
 fn slugify(text: String) -> String {

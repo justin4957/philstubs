@@ -23,6 +23,7 @@ import philstubs/web/auth_handler
 import philstubs/web/browse_handler
 import philstubs/web/context.{type Context}
 import philstubs/web/export_handler
+import philstubs/web/impact_handler
 import philstubs/web/ingestion_handler
 import philstubs/web/legislation_handler
 import philstubs/web/middleware
@@ -186,6 +187,8 @@ fn route_api(
             legislation_id,
             db_connection,
           )
+        ["legislation", legislation_id, "impact"] ->
+          handle_api_impact_analysis(request, legislation_id, db_connection)
         ["legislation", legislation_id] ->
           handle_api_legislation_detail(request, legislation_id, db_connection)
         ["templates"] ->
@@ -490,6 +493,15 @@ fn handle_api_compute_similarities(
 ) -> Response {
   use <- wisp.require_method(request, http.Post)
   similarity_handler.handle_compute_similarities(db_connection)
+}
+
+fn handle_api_impact_analysis(
+  request: Request,
+  legislation_id: String,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  impact_handler.handle_impact_analysis(request, legislation_id, db_connection)
 }
 
 // --- Docs routes ---

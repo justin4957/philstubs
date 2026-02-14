@@ -1,3 +1,4 @@
+import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
@@ -5,9 +6,11 @@ import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html
 import philstubs/core/government_level
+import philstubs/core/impact_types.{type ImpactNode}
 import philstubs/core/legislation.{type Legislation}
 import philstubs/core/legislation_status
 import philstubs/core/legislation_type
+import philstubs/core/reference
 import philstubs/core/similarity_types.{
   type AdoptionEvent, type SimilarLegislation,
 }
@@ -21,6 +24,7 @@ pub fn legislation_detail_page(
   related_legislation: List(Legislation),
   similar_legislation: List(SimilarLegislation),
   adoption_timeline: List(AdoptionEvent),
+  impact_nodes: List(ImpactNode),
 ) -> Element(Nil) {
   let legislation_id = legislation.legislation_id_to_string(record.id)
 
@@ -38,6 +42,7 @@ pub fn legislation_detail_page(
             related_legislation,
             similar_legislation,
             adoption_timeline,
+            impact_nodes,
           ),
         ]),
       ]),
@@ -139,6 +144,7 @@ fn metadata_sidebar(
   related_legislation: List(Legislation),
   similar_legislation: List(SimilarLegislation),
   adoption_timeline: List(AdoptionEvent),
+  impact_nodes: List(ImpactNode),
 ) -> Element(Nil) {
   html.aside([attribute.class("legislation-sidebar")], [
     html.h3([], [html.text("Details")]),
@@ -168,6 +174,7 @@ fn metadata_sidebar(
     actions_section(legislation_id, record.topics),
     similar_section(legislation_id, similar_legislation),
     adoption_timeline_section(adoption_timeline),
+    impact_section(impact_nodes),
     related_section(related_legislation),
   ])
 }
@@ -300,6 +307,49 @@ fn adoption_timeline_section(
           list.map(timeline_events, components.adoption_timeline_item),
         ),
       ])
+  }
+}
+
+fn impact_section(impact_nodes: List(ImpactNode)) -> Element(Nil) {
+  case impact_nodes {
+    [] -> element.none()
+    nodes -> {
+      let direct_count =
+        list.count(nodes, fn(node) { node.impact_kind == impact_types.Direct })
+      let transitive_count = list.length(nodes) - direct_count
+
+      html.div([attribute.class("impact-section")], [
+        html.h3([], [html.text("Impact Analysis")]),
+        html.p([attribute.class("impact-summary-text")], [
+          html.text(
+            int.to_string(list.length(nodes))
+            <> " affected — "
+            <> int.to_string(direct_count)
+            <> " direct, "
+            <> int.to_string(transitive_count)
+            <> " transitive",
+          ),
+        ]),
+        html.ul(
+          [attribute.class("impact-list")],
+          list.map(nodes, fn(node) {
+            let level_label = government_level.jurisdiction_label(node.level)
+            let depth_label = "depth " <> int.to_string(node.depth)
+            let reference_label =
+              reference.reference_type_to_string(node.reference_type)
+            html.li([], [
+              components.badge("level-badge", level_label),
+              html.a([attribute.href("/legislation/" <> node.legislation_id)], [
+                html.text(node.title),
+              ]),
+              html.span([attribute.class("impact-meta")], [
+                html.text(" — " <> depth_label <> ", " <> reference_label),
+              ]),
+            ])
+          }),
+        ),
+      ])
+    }
   }
 }
 
