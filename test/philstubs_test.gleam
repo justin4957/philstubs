@@ -31,7 +31,7 @@ pub fn landing_page_renders_test() {
   ]
 
   let rendered_html =
-    pages.landing_page(stats, template_count, level_counts)
+    pages.landing_page(stats, template_count, level_counts, [])
     |> element.to_document_string
 
   string.contains(rendered_html, "PHILSTUBS")
@@ -54,7 +54,7 @@ pub fn landing_page_shows_stats_test() {
     )
 
   let rendered_html =
-    pages.landing_page(stats, 12, [#("federal", 50), #("state", 100)])
+    pages.landing_page(stats, 12, [#("federal", 50), #("state", 100)], [])
     |> element.to_document_string
 
   // Verify stats are rendered
@@ -81,7 +81,7 @@ pub fn landing_page_shows_search_bar_test() {
     )
 
   let rendered_html =
-    pages.landing_page(stats, 0, [])
+    pages.landing_page(stats, 0, [], [])
     |> element.to_document_string
 
   string.contains(rendered_html, "search")
@@ -101,7 +101,7 @@ pub fn landing_page_shows_how_it_works_test() {
     )
 
   let rendered_html =
-    pages.landing_page(stats, 0, [])
+    pages.landing_page(stats, 0, [], [])
     |> element.to_document_string
 
   string.contains(rendered_html, "How It Works")
@@ -133,7 +133,7 @@ pub fn landing_page_shows_level_counts_test() {
   ]
 
   let rendered_html =
-    pages.landing_page(stats, 5, level_counts)
+    pages.landing_page(stats, 5, level_counts, [])
     |> element.to_document_string
 
   string.contains(rendered_html, "25")
@@ -156,7 +156,7 @@ pub fn landing_page_shows_cta_test() {
     )
 
   let rendered_html =
-    pages.landing_page(stats, 0, [])
+    pages.landing_page(stats, 0, [], [])
     |> element.to_document_string
 
   string.contains(rendered_html, "Start Exploring")
@@ -173,7 +173,7 @@ pub fn landing_page_empty_data_test() {
     )
 
   let rendered_html =
-    pages.landing_page(stats, 0, [])
+    pages.landing_page(stats, 0, [], [])
     |> element.to_document_string
 
   // Should still render without errors

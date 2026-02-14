@@ -4,6 +4,7 @@ import gleam/option.{None, Some}
 import lustre/element
 import philstubs/core/user
 import philstubs/data/browse_repo
+import philstubs/data/legislation_repo
 import philstubs/data/stats_repo
 import philstubs/data/template_repo
 import philstubs/search/search_query
@@ -98,7 +99,12 @@ fn index_page(request: Request, db_connection: sqlight.Connection) -> Response {
     Error(_) -> []
   }
 
-  pages.landing_page(stats, template_count, level_counts)
+  let recent_legislation = case legislation_repo.list_recent(db_connection, 6) {
+    Ok(legislation_list) -> legislation_list
+    Error(_) -> []
+  }
+
+  pages.landing_page(stats, template_count, level_counts, recent_legislation)
   |> element.to_document_string
   |> wisp.html_response(200)
 }
