@@ -8,6 +8,7 @@ import gleam/json
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
+import gleam/uri
 import philstubs/ingestion/congress_api_client.{type HttpDispatcher}
 import philstubs/ingestion/congress_types.{
   type ApiError, ApiKeyMissing, HttpError, JsonDecodeError, NotFound,
@@ -49,7 +50,7 @@ pub fn build_bills_url(
   let base_query_url =
     config.base_url
     <> "/bills?jurisdiction="
-    <> jurisdiction
+    <> uri.percent_encode(jurisdiction)
     <> "&per_page="
     <> int.to_string(per_page)
     <> "&page="
