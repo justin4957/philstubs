@@ -981,6 +981,62 @@ Key patterns:
 - State ingestion tests verify `GovernmentLevel.State("CA")` is correctly set on stored records
 - Legistar ingestion tests verify `GovernmentLevel.Municipal("WA", "Seattle")` and `GovernmentLevel.County("WA", "King County")` on stored records
 
+### Dialogue Tests for External Integrations
+
+Dialogue tests document and validate the complete request/response interaction flow between the application and each external API. They differ from existing mock tests (which test individual operation correctness) by focusing on the **full interaction sequence**, request counting, and field mapping chains.
+
+**Pattern**: Each dialogue test uses a **request-logging dispatcher** — a mock dispatcher that records every HTTP request URL via a `Subject(String)` channel, then returns canned responses. After ingestion completes, the test collects all logged requests and asserts on the interaction sequence.
+
+```gleam
+import gleam/erlang/process.{type Subject}
+
+fn logging_success_dispatcher(
+  request_log: Subject(String),
+) -> congress_api_client.HttpDispatcher {
+  fn(req: request.Request(String)) -> Result(Response(String), String) {
+    process.send(request_log, req.path)
+    Ok(Response(status: 200, headers: [], body: canned_response))
+  }
+}
+
+pub fn my_dialogue_test() {
+  let request_log = process.new_subject()
+  // ... run ingestion with logging dispatcher ...
+  let logged_requests = collect_logged_requests(request_log)
+  list.length(logged_requests) |> should.equal(expected_count)
+}
+```
+
+#### Congress.gov Dialogue Tests (`test/philstubs/ingestion/congress_dialogue_test.gleam`)
+
+**Interaction Sequence Tests** (3 tests):
+- `congress_success_dialogue_test` — Full pipeline: single API request to bill list endpoint → parse 2 bills → map to domain types → store in DB → update ingestion state to "completed". Verifies: 1 request made, correct URL pattern, both bills stored, ingestion state shows total_bills_fetched: 2.
+- `congress_error_dialogue_test` — API returns 500 → pipeline returns error → ingestion state marked "failed". Verifies: request was attempted, no bills stored.
+- `congress_field_mapping_dialogue_test` — Documents precise field transformations: `HR` type → `Bill`, `"Became Public Law"` action text → `Enacted` status, `"Referred to...Committee"` → `InCommittee`, `H.R. {number}` identifier format, source URL construction.
+
+#### Open States Dialogue Tests (`test/philstubs/ingestion/openstates_dialogue_test.gleam`)
+
+**Interaction Sequence Tests** (3 tests):
+- `openstates_success_dialogue_test` — Full pipeline: API request → parse bills with nested jurisdiction/sponsor/abstract objects → map to State("CA") level → store. Verifies: 1 request made, correct bill count, State level set, sponsors from nested person.name, summary from first abstract, topics from subject array.
+- `openstates_error_dialogue_test` — API error → error result → ingestion state tracked with jurisdiction/session fields.
+- `openstates_field_mapping_dialogue_test` — Documents nested extraction: OCD jurisdiction ID → state code "CA", classification ["bill"] → Bill type, action ["became-law"] → Enacted, ["committee-referral"] → InCommittee, person.name preferred over sponsorship name, empty abstracts → empty summary.
+
+#### Legistar Dialogue Tests (`test/philstubs/ingestion/legistar_dialogue_test.gleam`)
+
+**Interaction Sequence Tests** (4 tests):
+- `legistar_success_dialogue_test` — Full pipeline: fetch matters list → per-matter sponsor fetch → map with Municipal level → store. Verifies: both matters stored, Municipal("WA", "Seattle") level, sponsors attached from separate endpoint.
+- `legistar_multi_request_dialogue_test` — Verifies multi-endpoint interaction: 1 matters request + 2 sponsor requests = 3 total HTTP requests. Validates URL patterns for each request (matters vs sponsors endpoints with matter IDs).
+- `legistar_error_dialogue_test` — API 500 on matters list → error → only 1 request made (no sponsor requests), ingestion state "failed".
+- `legistar_field_mapping_dialogue_test` — Documents field transformations: MatterTypeName "Ordinance" → Ordinance, "Resolution" → Resolution, MatterStatusName "Adopted" → Enacted, "Filed" → Introduced, title fallback chain (MatterTitle > MatterName > MatterFile), date format stripping ("2024-03-01T00:00:00" → "2024-03-01"), summary from MatterNotes.
+
+### Code Coverage
+
+Gleam currently has no native code coverage tooling. The Erlang `cover` module exists on the BEAM but reports line numbers against generated `.erl` files, which do not map back to Gleam source lines, making the output impractical to use.
+
+**Current approach**: Comprehensive testing (583+ tests) with CI enforcement via `gleam test` in the GitHub Actions workflow. Test coverage spans pure domain logic, database operations, HTTP handlers, ingestion pipelines, and interaction flow documentation (dialogue tests).
+
+**Future**: The Gleam ecosystem may develop coverage tooling as the language matures. Monitor the [Gleam GitHub discussions](https://github.com/gleam-lang/gleam/discussions) and community tools for coverage support.
+
 ## Testing Strategy
 
 - **Pure function tests**: Test domain logic in `core/` with direct assertions
