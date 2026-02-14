@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Erlang/OTP, Gleam, and rebar3
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27"
+          gleam-version: "1.14"
+          rebar3-version: "3"
+
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: build/
+          key: gleam-build-${{ runner.os }}-${{ hashFiles('gleam.toml', 'manifest.toml') }}
+          restore-keys: |
+            gleam-build-${{ runner.os }}-
+
+      - name: Download dependencies
+        run: gleam deps download
+
+      - name: Check formatting
+        run: gleam format --check src/ test/
+
+      - name: Build
+        run: gleam build
+
+      - name: Run tests
+        run: gleam test
