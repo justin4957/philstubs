@@ -1,0 +1,535 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PHILSTUBS API",
+    "description": "Open API for accessing legislation data across all levels of US government. All data is freely available for download in JSON and CSV formats.",
+    "version": "1.0.0",
+    "license": {
+      "name": "Public Domain"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/api/export/legislation": {
+      "get": {
+        "summary": "Export all legislation",
+        "description": "Bulk export of legislation data in JSON or CSV format. Supports the same search filters as /api/search.",
+        "tags": ["Export"],
+        "parameters": [
+          {"$ref": "#/components/parameters/ExportFormat"},
+          {"$ref": "#/components/parameters/Level"},
+          {"$ref": "#/components/parameters/StateCode"},
+          {"$ref": "#/components/parameters/LegislationType"},
+          {"$ref": "#/components/parameters/Status"},
+          {"$ref": "#/components/parameters/SearchQuery"},
+          {"$ref": "#/components/parameters/DateFrom"},
+          {"$ref": "#/components/parameters/DateTo"}
+        ],
+        "responses": {
+          "200": {
+            "description": "Exported data file",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {"type": "string"},
+                "example": "attachment; filename=\"legislation-export.csv\""
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/export/templates": {
+      "get": {
+        "summary": "Export all templates",
+        "description": "Bulk export of legislation templates in JSON or CSV format.",
+        "tags": ["Export"],
+        "parameters": [
+          {"$ref": "#/components/parameters/ExportFormat"}
+        ],
+        "responses": {
+          "200": {
+            "description": "Exported data file"
+          }
+        }
+      }
+    },
+    "/api/export/search": {
+      "get": {
+        "summary": "Export search results",
+        "description": "Export filtered search results in JSON or CSV format.",
+        "tags": ["Export"],
+        "parameters": [
+          {"$ref": "#/components/parameters/ExportFormat"},
+          {"$ref": "#/components/parameters/SearchQuery"},
+          {"$ref": "#/components/parameters/Level"},
+          {"$ref": "#/components/parameters/LegislationType"},
+          {"$ref": "#/components/parameters/Status"}
+        ],
+        "responses": {
+          "200": {
+            "description": "Exported search results"
+          }
+        }
+      }
+    },
+    "/api/search": {
+      "get": {
+        "summary": "Search legislation",
+        "description": "Full-text search with faceted filtering and pagination.",
+        "tags": ["Search"],
+        "parameters": [
+          {"$ref": "#/components/parameters/SearchQuery"},
+          {"$ref": "#/components/parameters/Level"},
+          {"$ref": "#/components/parameters/StateCode"},
+          {"$ref": "#/components/parameters/LegislationType"},
+          {"$ref": "#/components/parameters/Status"},
+          {"$ref": "#/components/parameters/DateFrom"},
+          {"$ref": "#/components/parameters/DateTo"},
+          {"$ref": "#/components/parameters/Page"},
+          {"$ref": "#/components/parameters/PerPage"},
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {"type": "string", "enum": ["relevance", "date", "title"]}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated search results",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/SearchResults"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/legislation": {
+      "get": {
+        "summary": "List legislation",
+        "description": "Paginated list of legislation with optional filters.",
+        "tags": ["Legislation"],
+        "parameters": [
+          {"$ref": "#/components/parameters/Level"},
+          {"$ref": "#/components/parameters/Page"},
+          {"$ref": "#/components/parameters/PerPage"}
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated legislation list",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/SearchResults"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/legislation/stats": {
+      "get": {
+        "summary": "Legislation statistics",
+        "description": "Aggregate statistics: total count and breakdowns by level, type, and status.",
+        "tags": ["Legislation"],
+        "responses": {
+          "200": {
+            "description": "Legislation statistics"
+          }
+        }
+      }
+    },
+    "/api/legislation/{id}": {
+      "get": {
+        "summary": "Get legislation by ID",
+        "tags": ["Legislation"],
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Legislation record",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Legislation"}
+              }
+            }
+          },
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      }
+    },
+    "/api/legislation/{id}/similar": {
+      "get": {
+        "summary": "Find similar legislation",
+        "tags": ["Legislation"],
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "Similar legislation with scores"}
+        }
+      }
+    },
+    "/api/legislation/{id}/adoption-timeline": {
+      "get": {
+        "summary": "Adoption timeline",
+        "description": "Chronological timeline of similar legislation adoption across jurisdictions.",
+        "tags": ["Legislation"],
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "Adoption timeline events"}
+        }
+      }
+    },
+    "/api/templates": {
+      "get": {
+        "summary": "List templates",
+        "tags": ["Templates"],
+        "responses": {
+          "200": {"description": "Array of templates"}
+        }
+      },
+      "post": {
+        "summary": "Create template",
+        "description": "Requires authentication.",
+        "tags": ["Templates"],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/TemplateInput"}
+            }
+          }
+        },
+        "responses": {
+          "201": {"description": "Created template"},
+          "401": {"$ref": "#/components/responses/Unauthorized"}
+        }
+      }
+    },
+    "/api/templates/{id}": {
+      "get": {
+        "summary": "Get template by ID",
+        "tags": ["Templates"],
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "Template record"},
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      },
+      "put": {
+        "summary": "Update template",
+        "description": "Requires authentication and ownership.",
+        "tags": ["Templates"],
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "Updated template"},
+          "401": {"$ref": "#/components/responses/Unauthorized"},
+          "403": {"$ref": "#/components/responses/Forbidden"}
+        }
+      },
+      "delete": {
+        "summary": "Delete template",
+        "description": "Requires authentication and ownership.",
+        "tags": ["Templates"],
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "204": {"description": "Template deleted"},
+          "401": {"$ref": "#/components/responses/Unauthorized"},
+          "403": {"$ref": "#/components/responses/Forbidden"}
+        }
+      }
+    },
+    "/api/templates/{id}/download": {
+      "get": {
+        "summary": "Download template",
+        "tags": ["Templates"],
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "schema": {"type": "string"}},
+          {"name": "format", "in": "query", "schema": {"type": "string", "enum": ["text", "markdown"]}}
+        ],
+        "responses": {
+          "200": {"description": "Template file download"}
+        }
+      }
+    },
+    "/api/templates/{id}/matches": {
+      "get": {
+        "summary": "Find matching legislation for template",
+        "tags": ["Templates"],
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "Matching legislation with similarity scores"}
+        }
+      }
+    },
+    "/api/topics": {
+      "get": {
+        "summary": "List topics with counts",
+        "tags": ["Topics"],
+        "responses": {
+          "200": {"description": "Array of topics with legislation counts"}
+        }
+      }
+    },
+    "/api/topics/taxonomy": {
+      "get": {
+        "summary": "Topic taxonomy tree",
+        "description": "Full hierarchical topic taxonomy with parent topics, children, and legislation counts.",
+        "tags": ["Topics"],
+        "responses": {
+          "200": {"description": "Hierarchical taxonomy"}
+        }
+      }
+    },
+    "/api/topics/search": {
+      "get": {
+        "summary": "Search topics",
+        "description": "Prefix search for topic autocomplete.",
+        "tags": ["Topics"],
+        "parameters": [
+          {"$ref": "#/components/parameters/SearchQuery"}
+        ],
+        "responses": {
+          "200": {"description": "Matching topics"}
+        }
+      }
+    },
+    "/api/topics/auto-tag": {
+      "post": {
+        "summary": "Auto-tag legislation",
+        "description": "Trigger bulk auto-tagging based on keyword matching.",
+        "tags": ["Topics"],
+        "responses": {
+          "200": {"description": "Tagging results with count"}
+        }
+      }
+    },
+    "/api/topics/{slug}": {
+      "get": {
+        "summary": "Topic detail",
+        "description": "Topic with cross-level legislation breakdown.",
+        "tags": ["Topics"],
+        "parameters": [
+          {"name": "slug", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "Topic detail with counts"},
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      }
+    },
+    "/api/topics/{slug}/legislation": {
+      "get": {
+        "summary": "Topic legislation",
+        "description": "Paginated legislation for a topic.",
+        "tags": ["Topics"],
+        "parameters": [
+          {"name": "slug", "in": "path", "required": true, "schema": {"type": "string"}},
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 20}},
+          {"$ref": "#/components/parameters/Page"}
+        ],
+        "responses": {
+          "200": {"description": "Paginated legislation"}
+        }
+      }
+    },
+    "/api/levels": {
+      "get": {
+        "summary": "Government levels",
+        "description": "Government levels with legislation counts.",
+        "tags": ["Browse"],
+        "responses": {
+          "200": {"description": "Levels with counts"}
+        }
+      }
+    },
+    "/api/levels/{level}/jurisdictions": {
+      "get": {
+        "summary": "Jurisdictions at a level",
+        "tags": ["Browse"],
+        "parameters": [
+          {"name": "level", "in": "path", "required": true, "schema": {"type": "string"}},
+          {"$ref": "#/components/parameters/StateCode"}
+        ],
+        "responses": {
+          "200": {"description": "Jurisdictions with counts"}
+        }
+      }
+    },
+    "/api/similarity/compute": {
+      "post": {
+        "summary": "Compute similarities",
+        "description": "Trigger similarity computation across all legislation and templates.",
+        "tags": ["Similarity"],
+        "responses": {
+          "200": {"description": "Computation results with counts"}
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "ExportFormat": {
+        "name": "format",
+        "in": "query",
+        "description": "Export format",
+        "schema": {"type": "string", "enum": ["json", "csv"], "default": "json"}
+      },
+      "SearchQuery": {
+        "name": "q",
+        "in": "query",
+        "description": "Full-text search query",
+        "schema": {"type": "string"}
+      },
+      "Level": {
+        "name": "level",
+        "in": "query",
+        "description": "Government level filter",
+        "schema": {"type": "string", "enum": ["federal", "state", "county", "municipal"]}
+      },
+      "StateCode": {
+        "name": "state",
+        "in": "query",
+        "description": "Two-letter state code",
+        "schema": {"type": "string", "pattern": "^[A-Z]{2}$"}
+      },
+      "LegislationType": {
+        "name": "type",
+        "in": "query",
+        "description": "Legislation type filter",
+        "schema": {"type": "string", "enum": ["bill", "resolution", "ordinance", "bylaw", "amendment", "regulation", "executive_order"]}
+      },
+      "Status": {
+        "name": "status",
+        "in": "query",
+        "description": "Legislation status filter",
+        "schema": {"type": "string", "enum": ["introduced", "in_committee", "passed_chamber", "enacted", "vetoed", "expired", "withdrawn"]}
+      },
+      "DateFrom": {
+        "name": "date_from",
+        "in": "query",
+        "description": "Filter by introduced date (start)",
+        "schema": {"type": "string", "format": "date"}
+      },
+      "DateTo": {
+        "name": "date_to",
+        "in": "query",
+        "description": "Filter by introduced date (end)",
+        "schema": {"type": "string", "format": "date"}
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "description": "Page number",
+        "schema": {"type": "integer", "minimum": 1, "default": 1}
+      },
+      "PerPage": {
+        "name": "per_page",
+        "in": "query",
+        "description": "Results per page",
+        "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}
+      }
+    },
+    "schemas": {
+      "Legislation": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "title": {"type": "string"},
+          "summary": {"type": "string"},
+          "body": {"type": "string"},
+          "level": {"$ref": "#/components/schemas/GovernmentLevel"},
+          "legislation_type": {"type": "string"},
+          "status": {"type": "string"},
+          "introduced_date": {"type": "string", "format": "date"},
+          "source_url": {"type": "string", "nullable": true},
+          "source_identifier": {"type": "string"},
+          "sponsors": {"type": "array", "items": {"type": "string"}},
+          "topics": {"type": "array", "items": {"type": "string"}}
+        }
+      },
+      "GovernmentLevel": {
+        "type": "object",
+        "properties": {
+          "kind": {"type": "string", "enum": ["federal", "state", "county", "municipal"]},
+          "state_code": {"type": "string"},
+          "county_name": {"type": "string"},
+          "municipality_name": {"type": "string"}
+        },
+        "required": ["kind"]
+      },
+      "TemplateInput": {
+        "type": "object",
+        "required": ["title", "body", "author"],
+        "properties": {
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "body": {"type": "string"},
+          "suggested_level": {"$ref": "#/components/schemas/GovernmentLevel"},
+          "suggested_type": {"type": "string"},
+          "author": {"type": "string"},
+          "topics": {"type": "array", "items": {"type": "string"}}
+        }
+      },
+      "SearchResults": {
+        "type": "object",
+        "properties": {
+          "items": {"type": "array"},
+          "total_count": {"type": "integer"},
+          "page": {"type": "integer"},
+          "per_page": {"type": "integer"},
+          "total_pages": {"type": "integer"}
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {"type": "string"},
+          "code": {"type": "string", "enum": ["NOT_FOUND", "VALIDATION_ERROR", "UNAUTHORIZED", "FORBIDDEN", "METHOD_NOT_ALLOWED", "INTERNAL_ERROR"]}
+        }
+      }
+    },
+    "responses": {
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Authentication required",
+        "content": {
+          "application/json": {
+            "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Permission denied",
+        "content": {
+          "application/json": {
+            "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+          }
+        }
+      }
+    }
+  }
+}
