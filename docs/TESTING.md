@@ -730,6 +730,63 @@ Tests live in `test/` and follow the gleeunit convention:
 - `api_extract_citations_test` — POST /api/references/extract extracts citations from posted text
 - `api_extract_citations_empty_text_returns_400_test` — Empty text returns 400 validation error
 
+### Impact Analysis Types Tests (`test/philstubs/core/impact_types_test.gleam`)
+
+**Direction String Conversions** (5 tests):
+- `direction_to_string_incoming_test` — Incoming → "incoming"
+- `direction_to_string_outgoing_test` — Outgoing → "outgoing"
+- `direction_to_string_both_test` — Both → "both"
+- `direction_from_string_valid_test` — Roundtrip all 3 directions
+- `direction_from_string_unknown_defaults_to_both_test` — Unknown string defaults to Both
+
+**ImpactKind Conversions** (1 test):
+- `impact_kind_to_string_test` — Direct → "direct", Transitive → "transitive"
+
+**JSON Serialization** (2 tests):
+- `impact_node_json_contains_expected_fields_test` — ImpactNode JSON includes legislation_id, title, level, impact_kind, reference_type
+- `impact_result_json_structure_test` — Full ImpactResult JSON includes root_legislation_id, direction, nodes, summary with by_level/by_type
+
+### Impact Analyzer Tests (`test/philstubs/core/impact_analyzer_test.gleam`)
+
+**BFS Traversal** (9 tests):
+- `empty_graph_produces_no_nodes_test` — No edges → empty result
+- `single_outgoing_edge_test` — A→B returns B at depth 1, Direct
+- `single_incoming_edge_test` — Incoming traversal finds sources
+- `chain_a_b_c_produces_direct_and_transitive_test` — A→B→C, B=Direct depth 1, C=Transitive depth 2
+- `depth_limiting_stops_traversal_test` — max_depth=2 stops at C, omits D
+- `cycle_prevention_test` — A→B→C→A cycle doesn't loop infinitely
+- `diamond_deduplication_test` — A→B, A→C, B→D, C→D: D appears once
+- `both_directions_merges_results_test` — Both direction merges outgoing and incoming
+- `missing_metadata_skips_node_test` — Nodes without metadata are skipped
+- `max_depth_zero_returns_no_nodes_test` — max_depth=0 returns empty
+
+**Summarize Impact** (1 test):
+- `summarize_impact_counts_correctly_test` — Counts direct/transitive, max_depth, totals
+
+**Group By** (1 test):
+- `group_by_level_test` — Groups nodes by government level string
+
+### Impact Repository Tests (`test/philstubs/data/impact_repo_test.gleam`)
+
+**Graph Loading** (3 tests):
+- `empty_graph_from_empty_db_test` — Empty DB → empty outgoing/incoming dicts
+- `resolved_references_appear_in_graph_test` — A→B reference creates outgoing and incoming edges
+- `unresolved_references_excluded_from_graph_test` — NULL target_legislation_id excluded from graph
+
+**Metadata Loading** (2 tests):
+- `metadata_loading_with_government_levels_test` — Loads metadata with Federal, State, County, Municipal levels
+- `empty_metadata_from_empty_db_test` — Empty DB → empty metadata dict
+
+### Impact Handler Tests (`test/philstubs/web/impact_handler_test.gleam`)
+
+**Impact API** (6 tests):
+- `impact_endpoint_returns_200_with_empty_graph_test` — GET /api/legislation/:id/impact returns 200 with empty nodes
+- `impact_endpoint_returns_direct_impacts_test` — A→B reference, impact shows B as direct
+- `impact_endpoint_respects_direction_param_test` — direction=outgoing finds targets, direction=incoming finds sources
+- `impact_endpoint_respects_max_depth_param_test` — max_depth=1 limits traversal to depth 1
+- `impact_endpoint_defaults_to_both_and_depth_3_test` — Default params: direction=both, max_depth=3
+- `impact_endpoint_invalid_direction_defaults_to_both_test` — Invalid direction string defaults to both
+
 ### Topic Handler Tests (`test/philstubs/web/topic_handler_test.gleam`)
 
 **Taxonomy API** (2 tests):
@@ -1096,7 +1153,7 @@ pub fn my_dialogue_test() {
 
 Gleam currently has no native code coverage tooling. The Erlang `cover` module exists on the BEAM but reports line numbers against generated `.erl` files, which do not map back to Gleam source lines, making the output impractical to use.
 
-**Current approach**: Comprehensive testing (622+ tests) with CI enforcement via `gleam test` in the GitHub Actions workflow. Test coverage spans pure domain logic, database operations, HTTP handlers, ingestion pipelines, cross-reference extraction, and interaction flow documentation (dialogue tests).
+**Current approach**: Comprehensive testing (653+ tests) with CI enforcement via `gleam test` in the GitHub Actions workflow. Test coverage spans pure domain logic, database operations, HTTP handlers, ingestion pipelines, cross-reference extraction, impact analysis, and interaction flow documentation (dialogue tests).
 
 **Future**: The Gleam ecosystem may develop coverage tooling as the language matures. Monitor the [Gleam GitHub discussions](https://github.com/gleam-lang/gleam/discussions) and community tools for coverage support.
 
@@ -1326,6 +1383,16 @@ curl -X POST http://localhost:8000/api/references/extract \
   -H "Content-Type: application/json" \
   -d '{"text":"This bill amends 42 U.S.C. 1983 and references Pub. L. 117-169."}'
 # Expect: JSON with citations array and count
+
+# Impact Analysis API:
+curl http://localhost:8000/api/legislation/LEGISLATION_ID/impact
+# Expect: JSON with root_legislation_id, direction, max_depth, nodes array, and summary
+
+curl "http://localhost:8000/api/legislation/LEGISLATION_ID/impact?direction=outgoing&max_depth=2"
+# Expect: JSON with outgoing-only impact analysis limited to depth 2
+
+curl "http://localhost:8000/api/legislation/LEGISLATION_ID/impact?direction=incoming"
+# Expect: JSON with legislation that references the target
 
 # Similarity API:
 curl http://localhost:8000/api/legislation/LEGISLATION_ID/similar
