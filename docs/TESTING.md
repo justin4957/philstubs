@@ -787,6 +787,86 @@ Tests live in `test/` and follow the gleeunit convention:
 - `impact_endpoint_defaults_to_both_and_depth_3_test` — Default params: direction=both, max_depth=3
 - `impact_endpoint_invalid_direction_defaults_to_both_test` — Invalid direction string defaults to both
 
+### Explore Types Tests (`test/philstubs/core/explore_types_test.gleam`)
+
+**Edge Type Roundtrips** (4 tests):
+- `edge_type_references_roundtrip_test` — ReferencesEdge → "references" → ReferencesEdge
+- `edge_type_similar_to_roundtrip_test` — SimilarToEdge → "similar_to" → SimilarToEdge
+- `edge_type_all_types_roundtrip_test` — All 6 edge types roundtrip through string conversion
+- `edge_type_from_string_invalid_test` — Invalid string returns Error(Nil)
+
+**JSON Serialization** (5 tests):
+- `explore_node_to_json_matches_schema_test` — ExploreNode JSON includes id, type, label, date, level kind, source_identifier, sponsors
+- `explore_edge_to_json_matches_schema_test` — ExploreEdge JSON includes source, target, type, citation
+- `node_neighborhood_to_json_test` — NodeNeighborhood JSON includes node, edges, neighbors keys
+- `expand_result_to_json_test` — ExpandResult JSON includes root_id, depth, edge_types
+- `path_result_to_json_test` — PathResult JSON includes from_id, to_id, distance
+- `cluster_result_to_json_test` — ClusterResult JSON includes topic_slug, topic_name
+
+**Edge Type Parsing** (3 tests):
+- `parse_edge_types_empty_returns_all_test` — Empty string returns all 6 edge types
+- `parse_edge_types_single_test` — "references" returns [ReferencesEdge]
+- `parse_edge_types_multiple_test` — "references,similar_to" returns [ReferencesEdge, SimilarToEdge]
+
+### Explore Graph Tests (`test/philstubs/core/explore_graph_test.gleam`)
+
+**Neighborhood Assembly** (2 tests):
+- `empty_neighborhood_test` — No edges produces node with empty edges/neighbors lists
+- `neighborhood_with_mixed_edges_test` — Mix of references and similarities produces correct edge types and deduplicates neighbors
+
+**BFS Expansion** (3 tests):
+- `expand_references_only_test` — Expand with ReferencesEdge filter only follows reference edges
+- `expand_similarity_only_test` — Expand with SimilarToEdge filter only follows similarity edges
+- `expand_depth_limiting_test` — depth=1 limits BFS to immediate neighbors, excludes 2-hop nodes
+
+**Shortest Path** (5 tests):
+- `path_direct_test` — A→B direct edge found at distance 1
+- `path_two_hops_test` — A→B→C path found at distance 2 with correct edge reconstruction
+- `path_unreachable_test` — Disconnected nodes return distance -1
+- `path_same_node_test` — Same source and target returns distance 0
+- `path_cycle_safe_test` — Cycles (A→B→C→A) don't cause infinite loops
+
+**Cluster Building** (1 test):
+- `cluster_edge_filtering_test` — Only includes edges where both source and target are in the cluster ID set
+
+### Explore Repository Tests (`test/philstubs/data/explore_repo_test.gleam`)
+
+**Node Loading** (2 tests):
+- `load_node_with_topics_test` — Loads legislation with assigned topics from in-memory DB
+- `load_node_not_found_test` — Returns None for nonexistent legislation ID
+
+**Edge Loading** (1 test):
+- `load_node_edges_test` — Loads outgoing cross-references for a legislation node
+
+**Inter-Reference Queries** (1 test):
+- `load_inter_references_filtered_test` — IN clause filters to only edges where both source and target are in the ID set
+
+**Inter-Similarity Queries** (1 test):
+- `load_inter_similarities_filtered_test` — IN clause filters similarities to within-set edges with min_score threshold
+
+**Adjacency Loading** (1 test):
+- `load_similarity_adjacency_test` — Builds full adjacency dict for BFS expand from similarity table
+
+### Explore Handler Tests (`test/philstubs/web/explore_handler_test.gleam`)
+
+**Node Endpoint** (3 tests):
+- `explore_node_200_test` — GET /api/explore/node/:id returns 200 with node, edges, neighbors
+- `explore_node_404_test` — Nonexistent legislation ID returns 404 with NOT_FOUND code
+- `explore_node_with_edges_test` — Node with cross-references returns edges and neighbor nodes
+
+**Expand Endpoint** (3 tests):
+- `explore_expand_defaults_test` — GET /api/explore/expand/:id returns 200 with root_id, depth, nodes, edges
+- `explore_expand_filtered_test` — edge_types=references filters to only reference edges
+- `explore_expand_depth_clamped_test` — depth=99 is clamped to 3
+
+**Path Endpoint** (2 tests):
+- `explore_path_found_test` — GET /api/explore/path/:from/:to returns 200 with from_id, to_id, distance
+- `explore_path_not_found_test` — Disconnected nodes return distance -1
+
+**Cluster Endpoint** (2 tests):
+- `explore_cluster_found_test` — GET /api/explore/cluster/:slug returns 200 with topic_slug, topic_name, nodes, edges
+- `explore_cluster_404_test` — Nonexistent topic slug returns 404 with NOT_FOUND code
+
 ### Topic Handler Tests (`test/philstubs/web/topic_handler_test.gleam`)
 
 **Taxonomy API** (2 tests):
@@ -1153,7 +1233,7 @@ pub fn my_dialogue_test() {
 
 Gleam currently has no native code coverage tooling. The Erlang `cover` module exists on the BEAM but reports line numbers against generated `.erl` files, which do not map back to Gleam source lines, making the output impractical to use.
 
-**Current approach**: Comprehensive testing (653+ tests) with CI enforcement via `gleam test` in the GitHub Actions workflow. Test coverage spans pure domain logic, database operations, HTTP handlers, ingestion pipelines, cross-reference extraction, impact analysis, and interaction flow documentation (dialogue tests).
+**Current approach**: Comprehensive testing (693+ tests) with CI enforcement via `gleam test` in the GitHub Actions workflow. Test coverage spans pure domain logic, database operations, HTTP handlers, ingestion pipelines, cross-reference extraction, impact analysis, navigation graph exploration, and interaction flow documentation (dialogue tests).
 
 **Future**: The Gleam ecosystem may develop coverage tooling as the language matures. Monitor the [Gleam GitHub discussions](https://github.com/gleam-lang/gleam/discussions) and community tools for coverage support.
 
@@ -1393,6 +1473,28 @@ curl "http://localhost:8000/api/legislation/LEGISLATION_ID/impact?direction=outg
 
 curl "http://localhost:8000/api/legislation/LEGISLATION_ID/impact?direction=incoming"
 # Expect: JSON with legislation that references the target
+
+# Navigation Graph Explore API:
+curl http://localhost:8000/api/explore/node/LEGISLATION_ID
+# Expect: JSON with node (id, type, label, level, status, date, metadata), edges array, neighbors array
+
+curl "http://localhost:8000/api/explore/expand/LEGISLATION_ID?edge_types=references,similar_to&depth=2"
+# Expect: JSON with root_id, depth, edge_types, nodes array, edges array (BFS expansion)
+
+curl "http://localhost:8000/api/explore/expand/LEGISLATION_ID?edge_types=references&depth=1"
+# Expect: JSON with only reference edges, depth 1
+
+curl http://localhost:8000/api/explore/path/FROM_LEGISLATION_ID/TO_LEGISLATION_ID
+# Expect: JSON with from_id, to_id, path (node array), edges, distance (or distance: -1 if unreachable)
+
+curl "http://localhost:8000/api/explore/cluster/healthcare?limit=50&min_similarity=0.3"
+# Expect: JSON with topic_slug, topic_name, nodes array, edges array (inter-cluster connections)
+
+curl http://localhost:8000/api/explore/node/nonexistent
+# Expect: 404 with {"error":"...","code":"NOT_FOUND"}
+
+curl http://localhost:8000/api/explore/cluster/nonexistent-topic
+# Expect: 404 with {"error":"...","code":"NOT_FOUND"}
 
 # Similarity API:
 curl http://localhost:8000/api/legislation/LEGISLATION_ID/similar

@@ -22,6 +22,7 @@ import philstubs/web/api_middleware
 import philstubs/web/auth_handler
 import philstubs/web/browse_handler
 import philstubs/web/context.{type Context}
+import philstubs/web/explore_handler
 import philstubs/web/export_handler
 import philstubs/web/impact_handler
 import philstubs/web/ingestion_handler
@@ -246,6 +247,14 @@ fn route_api(
           )
         ["references", "extract"] ->
           reference_handler.handle_extract_citations(request, db_connection)
+        ["explore", "node", legislation_id] ->
+          handle_api_explore_node(request, legislation_id, db_connection)
+        ["explore", "expand", legislation_id] ->
+          handle_api_explore_expand(request, legislation_id, db_connection)
+        ["explore", "path", from_id, to_id] ->
+          handle_api_explore_path(request, from_id, to_id, db_connection)
+        ["explore", "cluster", topic_slug] ->
+          handle_api_explore_cluster(request, topic_slug, db_connection)
         _ -> api_error.not_found("Endpoint")
       }
       api_middleware.apply_cors(response)
@@ -502,6 +511,45 @@ fn handle_api_impact_analysis(
 ) -> Response {
   use <- wisp.require_method(request, http.Get)
   impact_handler.handle_impact_analysis(request, legislation_id, db_connection)
+}
+
+// --- Explore API routes ---
+
+fn handle_api_explore_node(
+  request: Request,
+  legislation_id: String,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  explore_handler.handle_node(request, legislation_id, db_connection)
+}
+
+fn handle_api_explore_expand(
+  request: Request,
+  legislation_id: String,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  explore_handler.handle_expand(request, legislation_id, db_connection)
+}
+
+fn handle_api_explore_path(
+  request: Request,
+  from_id: String,
+  to_id: String,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  explore_handler.handle_path(request, from_id, to_id, db_connection)
+}
+
+fn handle_api_explore_cluster(
+  request: Request,
+  topic_slug: String,
+  db_connection: sqlight.Connection,
+) -> Response {
+  use <- wisp.require_method(request, http.Get)
+  explore_handler.handle_cluster(request, topic_slug, db_connection)
 }
 
 // --- Docs routes ---
