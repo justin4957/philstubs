@@ -6,6 +6,8 @@ import gleam/option.{None}
 import gleam/result
 import mist
 import philstubs/data/database
+import philstubs/data/legislation_repo
+import philstubs/data/seed
 import philstubs/web/context.{Context}
 import philstubs/web/router
 import wisp
@@ -25,6 +27,16 @@ pub fn main() {
 
   use connection <- database.with_connection()
   let assert Ok(_) = database.initialize(connection)
+
+  // Seed the database with sample data if it's empty
+  let assert Ok(existing_legislation) = legislation_repo.list_all(connection)
+  case existing_legislation {
+    [] -> {
+      let assert Ok(_) = seed.seed(connection)
+      io.println("Seeded database with sample legislation and templates")
+    }
+    _ -> Nil
+  }
 
   let application_context =
     Context(
